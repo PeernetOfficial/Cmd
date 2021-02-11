@@ -23,6 +23,7 @@ package main
 import (
 	"encoding/binary"
 	"errors"
+	"math/rand"
 	"sync/atomic"
 
 	"github.com/btcsuite/btcd/btcec"
@@ -41,6 +42,7 @@ type packetRaw struct {
 // The minimum packet size is 8 bytes (minimum header size) + 65 bytes (signature)
 const packetLengthMin = 8 + signatureSize
 const signatureSize = 65
+const maxRandomGarbage = 20
 
 // packetDecrypt decrypts the packet, verifies its signature and returns a high-level version of the packet.
 // receiverID is the compressed version of the receiver's public key.
@@ -84,7 +86,8 @@ func packetDecrypt(raw []byte, receiverID *[32]byte) (packet *packetRaw, err err
 
 // packetEncrypt encrypts a packet using the provided senders private key and receivers compressed public key.
 func packetEncrypt(senderPrivateKey *btcec.PrivateKey, receiverID *[32]byte, packet *packetRaw) (raw []byte, err error) {
-	raw = make([]byte, packetLengthMin+len(packet.Payload))
+	garbage := packetGarbage(packetLengthMin + len(packet.Payload))
+	raw = make([]byte, packetLengthMin+len(packet.Payload)+len(garbage))
 
 	// Nonce. TODO: Translate into a pseudo random number
 	nonce := make([]byte, 8)
@@ -98,11 +101,10 @@ func packetEncrypt(senderPrivateKey *btcec.PrivateKey, receiverID *[32]byte, pac
 
 	binary.LittleEndian.PutUint16(raw[6:8], uint16(len(packet.Payload)))
 	copy(raw[8:], packet.Payload)
-
-	// TODO: Add garbage.
+	copy(raw[8+len(packet.Payload):8+len(packet.Payload)+len(garbage)], garbage)
 
 	// encrypt it using Salsa20
-	salsa20.XORKeyStream(raw[4:8+len(packet.Payload)], raw[4:8+len(packet.Payload)], nonce, receiverID)
+	salsa20.XORKeyStream(raw[4:8+len(packet.Payload)+len(garbage)], raw[4:8+len(packet.Payload)+len(garbage)], nonce, receiverID)
 
 	// add signature
 	signature, err := btcec.SignCompact(btcec.S256(), senderPrivateKey, chainhash.DoubleHashB(raw[:len(raw)-signatureSize]), true)
@@ -114,4 +116,23 @@ func packetEncrypt(senderPrivateKey *btcec.PrivateKey, receiverID *[32]byte, pac
 	copy(raw[len(raw)-signatureSize:], signature)
 
 	return raw, nil
+}
+
+func packetGarbage(packetLength int) (random []byte) {
+	// Align maximum length at 508 bytes (UDP minimum no fragmentation) and 1472 bytes (MTU).
+	maxLength := maxRandomGarbage
+	switch {
+	case packetLength == 508, packetLength == 1472:
+		return nil
+	case packetLength < 508 && (508-packetLength) < maxRandomGarbage:
+		maxLength = packetLength - 508
+	case packetLength < 1472 && (1472-packetLength) < maxRandomGarbage:
+		maxLength = packetLength - 1472
+	}
+
+	b := make([]byte, rand.Intn(maxLength))
+	if _, err := rand.Read(b); err != nil {
+		return nil
+	}
+	return b
 }
