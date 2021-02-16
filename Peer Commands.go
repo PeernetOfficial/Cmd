@@ -17,7 +17,7 @@ import (
 type packet2 struct {
 	SenderPublicKey *btcec.PublicKey // Sender Public Key, ECDSA (secp256k1) 257-bit
 	packetRaw
-	network *network6    // network which received the packet
+	network *network     // network which received the packet
 	address *net.UDPAddr // address of the sender or receiver
 }
 

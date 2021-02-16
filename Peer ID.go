@@ -63,7 +63,7 @@ func secp256k1NewPrivateKey() (privateKey *btcec.PrivateKey, publicKey *btcec.Pu
 // PeerInfo stores information about a single remote peer
 type PeerInfo struct {
 	peerPublicKey *btcec.PublicKey // Public key
-	network       *network6        // Network interface used for communicating with the peer. If empty, try all.
+	network       *network         // Network interface used for communicating with the peer. If empty, try all.
 	address       *net.UDPAddr     // Remote address of the peer (IP:Port)
 }
 
@@ -125,7 +125,12 @@ func (peer *PeerInfo) send(packet *packetRaw) (err error) {
 			}
 		}
 	} else {
-		return errors.New("IPv4 not supported")
+		for _, network := range networks4 {
+			err = network.send(peer.address.IP, peer.address.Port, raw)
+			if err == nil {
+				successCount++
+			}
+		}
 	}
 
 	if successCount == 0 {

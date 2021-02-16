@@ -1,5 +1,5 @@
 /*
-File Name:  Network IPv6.go
+File Name:  Network.go
 Copyright:  2021 Peernet Foundation s.r.o.
 Author:     Peter Kleissner
 */
@@ -14,18 +14,18 @@ import (
 	"time"
 )
 
-// network6 is a connection adapter through one network interface (adapter).
+// network is a connection adapter through one network interface (adapter).
 // Note that for each IP on the same adapter separate network entries are created.
-type network6 struct {
-	iface       *net.Interface // Network interface belonging to the IP
-	ipnet       *net.IPNet     // IP network the listening address belongs to
-	multicastIP net.IP         // the multicast IP
+type network struct {
+	iface       *net.Interface // Network interface belonging to the IP. May not be set.
+	ipnet       *net.IPNet     // IP network the listening address belongs to. May not be set.
+	multicastIP net.IP         // Multicast IP, IPv6 only.
 	listen      *net.UDPAddr   // IP:Port where the server listens
 	socket      *net.UDPConn   // active socket for send/receive
 }
 
 // networks is a list of all connected networks
-var networks6 []*network6
+var networks4, networks6 []*network
 
 // Default ports to use. This may be randomized in the future to prevent fingerprinting (and subsequent blocking) by corporate and ISP firewalls.
 const defaultPort = 'p'         // 112
@@ -33,13 +33,18 @@ const startPortDefault2 = 12912 // 03270h = 12912 = 'p2'
 const maxPorts = 100
 
 // AutoAssignPort assigns a port for the given IP. Use port 0 for zero configuration.
-func (network *network6) AutoAssignPort(ip net.IP, port int) (err error) {
+func (network *network) AutoAssignPort(ip net.IP, port int) (err error) {
+	networkA := "udp6"
+	if IsIPv4(ip) {
+		networkA = "udp4"
+	}
+
 	// Find an available port. Sometimes the network interface might not be ready when the service is started immediately after boot. Full error: "listen udp6 [REDACTED]:[REDACTED]: bind: The requested address is not valid in its context."
 	// To fix this, try up to 4 times, wait 20 seconds in between each try.
 	connectPortTry := func(port int) (listen *net.UDPAddr, socket *net.UDPConn, err error) {
 		for retryCount := 0; retryCount < 4; retryCount++ {
 			listen = &net.UDPAddr{IP: ip, Port: port}
-			socket, err = net.ListenUDP("udp6", listen)
+			socket, err = net.ListenUDP(networkA, listen)
 			if err == nil {
 				return listen, socket, nil
 			}
@@ -73,13 +78,13 @@ func (network *network6) AutoAssignPort(ip net.IP, port int) (err error) {
 }
 
 // send sends a message
-func (network *network6) send(IP net.IP, port int, raw []byte) (err error) {
+func (network *network) send(IP net.IP, port int, raw []byte) (err error) {
 	_, err = network.socket.WriteTo(raw, &net.UDPAddr{IP: IP, Port: port})
 	return err
 }
 
 // Listen starts listening for incoming packets on the given UDP connection
-func (network *network6) Listen() {
+func (network *network) Listen() {
 	buffer := make([]byte, 4096)
 
 	for {

@@ -24,7 +24,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"math/rand"
-	"sync/atomic"
 
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -90,10 +89,10 @@ func packetEncrypt(senderPrivateKey *btcec.PrivateKey, receiverPublicKey *btcec.
 	raw = make([]byte, packetLengthMin+len(packet.Payload)+len(garbage))
 
 	// Nonce. TODO: Translate into a pseudo random number
+	nonceC := rand.Uint32()
 	nonce := make([]byte, 8)
-	nonceC := atomic.AddUint64(&nonce1, 1)
-	binary.LittleEndian.PutUint32(nonce[0:4], uint32(nonceC))
-	binary.LittleEndian.PutUint32(nonce[4:8], uint32(nonceC))
+	binary.LittleEndian.PutUint32(nonce[0:4], nonceC)
+	binary.LittleEndian.PutUint32(nonce[4:8], nonceC)
 	copy(raw[0:4], nonce[0:4])
 
 	raw[4] = packet.Protocol
