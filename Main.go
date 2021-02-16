@@ -5,11 +5,16 @@ Author:     Peter Kleissner
 */
 
 package main
+
 func init() {
 	loadConfig()
+	initPeerID()
+	initNetwork()
+	loadSeedList()
 }
 
 func main() {
+	go autoAnnounce()
 	userCommands()
 }
 

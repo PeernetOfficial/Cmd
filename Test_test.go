@@ -45,14 +45,14 @@ func TestEncryption1(t *testing.T) {
 	publicKeyB := publicKey.SerializeCompressed()
 	copy(peerIDcompressed[:], publicKeyB[1:])
 
-	packet1 := packetRaw{Protocol: 0, SenderPublicKey: publicKey, Command: 1, Payload: []byte{1, 2, 3}}
+	packet1 := packetRaw{Protocol: 0, Command: 1, Payload: []byte{1, 2, 3}}
 
 	raw1, err := packetEncrypt(privateKey, &peerIDcompressed, &packet1)
 	if err != nil {
 		return
 	}
 
-	packet1d, err := packetDecrypt(raw1, &peerIDcompressed)
+	packet1d, _, err := packetDecrypt(raw1, &peerIDcompressed)
 	if err != nil {
 		fmt.Printf("Error %s\n", err.Error())
 		return

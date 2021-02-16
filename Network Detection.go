@@ -8,6 +8,33 @@ package main
 
 import "net"
 
+// FindInterfaceByIP finds an interface based on the IP. The IP must be available at the interface.
+func FindInterfaceByIP(ip net.IP) (iface *net.Interface, ipnet *net.IPNet) {
+	interfaceList, err := net.Interfaces()
+	if err != nil {
+		return nil, nil
+	}
+
+	// iterate through all interfaces
+	for _, ifaceSingle := range interfaceList {
+		addresses, err := ifaceSingle.Addrs()
+		if err != nil {
+			continue
+		}
+
+		// iterate through all IPs of the interfaces
+		for _, address := range addresses {
+			addressIP := address.(*net.IPNet).IP
+
+			if addressIP.Equal(ip) {
+				return &ifaceSingle, address.(*net.IPNet)
+			}
+		}
+	}
+
+	return nil, nil
+}
+
 // NetworkListIPs returns a list of all IPs
 func NetworkListIPs() (IPs []net.IP, err error) {
 
@@ -72,3 +99,6 @@ func NetworkListOutput() (text string) {
 
 	return text
 }
+
+// TODO: Incorporate functions ReachabilityTo and Routable from:
+// https://github.com/tendermint/go-p2p/blob/master/netaddress.go

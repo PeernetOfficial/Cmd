@@ -33,10 +33,9 @@ import (
 
 // packetRaw is a decrypted P2P message
 type packetRaw struct {
-	SenderPublicKey *btcec.PublicKey // Sender Public Key, ECDSA (secp256k1) 257-bit
-	Protocol        uint8            // Protocol version = 0
-	Command         uint8            // 0 = Announcement
-	Payload         []byte           // Payload
+	Protocol uint8  // Protocol version = 0
+	Command  uint8  // 0 = Announcement
+	Payload  []byte // Payload
 }
 
 // The minimum packet size is 8 bytes (minimum header size) + 65 bytes (signature)
@@ -46,7 +45,7 @@ const maxRandomGarbage = 20
 
 // packetDecrypt decrypts the packet, verifies its signature and returns a high-level version of the packet.
 // receiverID is the compressed version of the receiver's public key.
-func packetDecrypt(raw []byte, receiverID *[32]byte) (packet *packetRaw, err error) {
+func packetDecrypt(raw []byte, receiverID *[32]byte) (packet *packetRaw, senderPublicKey *btcec.PublicKey, err error) {
 	// Packet is assumed to be already checked for minimum length.
 
 	// Prepare Salsa20 nonce and key. Nonce = 2x first 4 bytes. For size reasons, only 4 bytes (instead of 8 bytes) is supplied in the packet.
@@ -60,9 +59,9 @@ func packetDecrypt(raw []byte, receiverID *[32]byte) (packet *packetRaw, err err
 	copy(signature[:], raw[len(raw)-signatureSize:])
 	salsa20.XORKeyStream(signature[:], signature[:], nonce, receiverID)
 
-	senderPublicKey, _, err := btcec.RecoverCompact(btcec.S256(), signature[:], chainhash.DoubleHashB(raw[:len(raw)-signatureSize]))
+	senderPublicKey, _, err = btcec.RecoverCompact(btcec.S256(), signature[:], chainhash.DoubleHashB(raw[:len(raw)-signatureSize]))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Decrypt the packet using Salsa20.
@@ -70,18 +69,18 @@ func packetDecrypt(raw []byte, receiverID *[32]byte) (packet *packetRaw, err err
 	salsa20.XORKeyStream(bufferDecrypted[:], raw[4:len(raw)-signatureSize], nonce, receiverID)
 
 	// copy all fields
-	packet = &packetRaw{SenderPublicKey: senderPublicKey, Protocol: bufferDecrypted[0], Command: bufferDecrypted[1]}
+	packet = &packetRaw{Protocol: bufferDecrypted[0], Command: bufferDecrypted[1]}
 
 	sizePayload := binary.LittleEndian.Uint16(bufferDecrypted[2:4])
 	if int(sizePayload) > len(bufferDecrypted)-4 { // invalid length?
-		return nil, errors.New("invalid length field")
+		return nil, nil, errors.New("invalid length field")
 	}
 	if sizePayload > 0 {
 		packet.Payload = make([]byte, int(sizePayload))
 		copy(packet.Payload, bufferDecrypted[4:4+int(sizePayload)])
 	}
 
-	return packet, nil
+	return packet, senderPublicKey, nil
 }
 
 // packetEncrypt encrypts a packet using the provided senders private key and receivers compressed public key.

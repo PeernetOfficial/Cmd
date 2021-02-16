@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -20,24 +21,39 @@ const configFile = "Settings.yaml"
 var config struct {
 	LogFile string `yaml:"LogFile"` // Log file
 
-	Listen []string `yaml:"Listen"` // IP:Port combinations
+	Listen        []string `yaml:"Listen"`        // IP:Port combinations
+	ListenWorkers int      `yaml:"ListenWorkers"` // Count of workers to process incoming raw packets. Default 2.
 
-	// API server settings
-	// TODO
+	// User specific settings
+	PrivateKey string `yaml:"PrivateKey"` // The Private Key, hex encoded so it can be copied manually
+
+	// Initial peer seed list
+	SeedList []peerSeed `yaml:"SeedList"`
+}
+
+// peerSeed is a singl peer entry from the config's seed list
+type peerSeed struct {
+	PublicKey string   `yaml:"PublicKey"` // Public key = peer ID. Hex encoded.
+	Address   []string `yaml:"Address"`   // IP:Port
 }
 
 // loadConfig reads the YAML configuration file
 func loadConfig() {
 	cfg, err := ioutil.ReadFile(configFile)
-	if err != nil {
-		fmt.Printf("Configuration file '%s' could not be found!\nPlease ensure that your current path leads to the right file.\n", configFile)
-		os.Exit(1)
-	}
+	if err != nil && strings.Contains(err.Error(), "system cannot find the file specified") {
+		// Does not exist. Use default values.
+		config.LogFile = "Log.txt"
 
-	err = yaml.Unmarshal(cfg, &config)
-	if err != nil {
-		fmt.Printf("YAML data in '%s' couldn't be read!\nPlease ensure that the format of the file is valid YAML.\n", configFile)
+	} else if err != nil {
+		fmt.Printf("Configuration file '%s' could not be read. Error: %s\n", configFile, err.Error())
 		os.Exit(1)
+	} else {
+		// read existing config
+		err = yaml.Unmarshal(cfg, &config)
+		if err != nil {
+			fmt.Printf("Configuration file '%s' could not be read. Please make sure it contains valid YAML data. Error: %v\n", configFile, err.Error())
+			os.Exit(1)
+		}
 	}
 
 	// redirect all output to the log file
@@ -48,4 +64,18 @@ func loadConfig() {
 	//	defer logFile.Close()	// has to remain open until program closes
 
 	log.SetOutput(logFile)
+}
+
+func saveConfig() {
+	data, err := yaml.Marshal(config)
+	if err != nil {
+		log.Printf("saveConfig Error marshalling config: %v\n", err.Error())
+		return
+	}
+
+	err = ioutil.WriteFile(configFile, data, 0644)
+	if err != nil {
+		log.Printf("saveConfig Error writing config '%s': %v\n", configFile, err.Error())
+		return
+	}
 }
