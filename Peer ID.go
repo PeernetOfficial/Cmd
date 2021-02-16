@@ -23,6 +23,8 @@ var peerPrivateKey *btcec.PrivateKey
 var peerPublicKey *btcec.PublicKey
 
 func initPeerID() {
+	peerList = make(map[btcec.PublicKey]*PeerInfo)
+
 	// load existing key from config, if available
 	if len(config.PrivateKey) > 0 {
 		configPK, err := hex.DecodeString(config.PrivateKey)
@@ -61,7 +63,7 @@ func secp256k1NewPrivateKey() (privateKey *btcec.PrivateKey, publicKey *btcec.Pu
 // PeerInfo stores information about a single remote peer
 type PeerInfo struct {
 	peerPublicKey *btcec.PublicKey // Public key
-	network       *network6        // Network interface used for communicating with the peer
+	network       *network6        // Network interface used for communicating with the peer. If empty, try all.
 	address       *net.UDPAddr     // Remote address of the peer (IP:Port)
 }
 
@@ -102,18 +104,35 @@ func PeerlistGet() (peers []*PeerInfo) {
 }
 
 // send sends a raw packet to the peer
-func (peer *PeerInfo) send(packet *packetRaw) {
+func (peer *PeerInfo) send(packet *packetRaw) (err error) {
 	raw, err := packetEncrypt(peerPrivateKey, peer.peerPublicKey, packet)
 	if err != nil {
-		log.Printf("Error creating packet: %s\n", err.Error())
-		return
+		return err
 	}
 
 	// send out the wire
-	err = peer.network.send(peer.address.IP, peer.address.Port, raw)
-	if err != nil {
-		log.Printf("Error sending UDP packet: %v\n", err)
+	if peer.network != nil {
+		return peer.network.send(peer.address.IP, peer.address.Port, raw)
 	}
+
+	successCount := 0
+
+	if IsIPv6(peer.address.IP.To16()) {
+		for _, network := range networks6 {
+			err = network.send(peer.address.IP, peer.address.Port, raw)
+			if err == nil {
+				successCount++
+			}
+		}
+	} else {
+		return errors.New("IPv4 not supported")
+	}
+
+	if successCount == 0 {
+		err = errors.New("Unsuccessful send")
+	}
+
+	return nil
 }
 
 // PeerFromSeed attempts to create a peer structure based on the input seed info.
@@ -148,7 +167,7 @@ func PeerFromSeed(Address, PublicKey string) (peer *PeerInfo, err error) {
 
 	peer = &PeerInfo{peerPublicKey: publicKeyP, address: &net.UDPAddr{IP: ip, Port: portI}}
 
-	// network ???
+	// Network is intentionally kept empty. It will try sending it from all available networks.
 
 	return peer, nil
 }

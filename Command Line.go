@@ -8,6 +8,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"strconv"
@@ -60,15 +61,20 @@ func getUserOptionInt(reader *bufio.Reader) (response int, valid bool) {
 
 func showHelp() {
 	fmt.Print("Please enter a command:\n")
-	fmt.Print("help          Show this help\n" +
-		"net list all  Lists all IPs\n" +
+	fmt.Print("help               Show this help\n" +
+		"connect            Connect to Peernet\n" +
+		"disconnect         Disconnect from Peernet\n" +
+		"net list all       Lists all IPs\n" +
+		"status             Get current status\n" +
+		"chat all           Send text to all peers\n" +
+		"debug key create   Create Public-Private Key pair\n" +
 		"\n")
 }
 
 func userCommands() {
 	reader := bufio.NewReader(os.Stdin)
 
-	fmt.Print("Peernet Cmd 0.1\n------------------------------\n")
+	fmt.Print("Peernet Cmd " + version + "\n------------------------------\n")
 	showHelp()
 
 	for {
@@ -84,6 +90,21 @@ func userCommands() {
 
 		case "net list all":
 			fmt.Print(NetworkListOutput())
+
+		case "debug key create":
+			privateKey, publicKey, err := secp256k1NewPrivateKey()
+			if err != nil {
+				fmt.Printf("Error: %s\n", err.Error())
+				return
+			}
+
+			fmt.Printf("Private Key: %s\n", hex.EncodeToString(privateKey.Serialize()))
+			fmt.Printf("Public Key: %s\n", hex.EncodeToString(publicKey.SerializeCompressed()))
+
+		case "chat all":
+			if text, valid := getUserOptionString(reader); valid {
+				sendChatAll(text)
+			}
 
 		}
 	}

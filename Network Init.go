@@ -89,16 +89,18 @@ func networkPrepareListen(ipA string, port int) (err error) {
 	ip := net.ParseIP(ipA)
 	if ip == nil {
 		return errors.New("Invalid input IP")
-	} else if ip.To4() != nil || ip.To16() == nil {
-		return errors.New("Only IPv6 supported currently")
+	} else if IsIPv4(ip) {
+		return errors.New("IPv4 is not supported")
 	}
 
 	network := new(network6)
 
 	// get the network interface that belongs to the IP
-	network.iface, network.ipnet = FindInterfaceByIP(ip)
-	if network.iface == nil {
-		return errors.New("Error finding the network interface belonging to IP")
+	if ipA != "0.0.0.0" && ipA != "::" {
+		network.iface, network.ipnet = FindInterfaceByIP(ip)
+		if network.iface == nil {
+			return errors.New("Error finding the network interface belonging to IP")
+		}
 	}
 
 	// open up the port

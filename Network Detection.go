@@ -100,5 +100,15 @@ func NetworkListOutput() (text string) {
 	return text
 }
 
+// IsIPv4 checks if an IP address is IPv4
+func IsIPv4(IP net.IP) bool {
+	return IP.To4() != nil
+}
+
+// IsIPv6 checks if an IP address is IPv6
+func IsIPv6(IP net.IP) bool {
+	return IP.To4() == nil && IP.To16() != nil
+}
+
 // TODO: Incorporate functions ReachabilityTo and Routable from:
 // https://github.com/tendermint/go-p2p/blob/master/netaddress.go

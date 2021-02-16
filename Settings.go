@@ -17,6 +17,7 @@ import (
 )
 
 const configFile = "Settings.yaml"
+const version = "0.1"
 
 var config struct {
 	LogFile string `yaml:"LogFile"` // Log file
@@ -64,6 +65,7 @@ func loadConfig() {
 	//	defer logFile.Close()	// has to remain open until program closes
 
 	log.SetOutput(logFile)
+	log.Printf("---- Peernet Command-Line Client " + version + " ----\n")
 }
 
 func saveConfig() {
