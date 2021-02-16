@@ -103,7 +103,7 @@ func (network *network6) Listen() {
 
 func handlePackets(packets <-chan networkWire) {
 	for packet := range packets {
-		decoded, senderPublicKey, err := packetDecrypt(packet.raw, &peerIDcompressed)
+		decoded, senderPublicKey, err := packetDecrypt(packet.raw, peerPublicKey)
 		if err != nil {
 			log.Printf("Error decrypting packet: %s\n", err.Error())
 			continue
@@ -115,7 +115,7 @@ func handlePackets(packets <-chan networkWire) {
 		}
 
 		// process the packet
-		message := packet2{SenderPublicKey: senderPublicKey, packetRaw: *decoded, network: packet.network, sender: packet.sender}
+		message := packet2{SenderPublicKey: senderPublicKey, packetRaw: *decoded, network: packet.network, address: packet.sender}
 
 		switch decoded.Command {
 		case 0: // Announce
