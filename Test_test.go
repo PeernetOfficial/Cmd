@@ -1,12 +1,14 @@
 package main
 
 import (
+	"crypto/rand"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"lukechampine.com/blake3"
 )
 
 func TestSignCompact(t *testing.T) {
@@ -57,4 +59,27 @@ func TestEncryption1(t *testing.T) {
 	}
 
 	fmt.Printf("%d\n", packet1d.Command)
+}
+
+func BenchmarkHash(b *testing.B) {
+	length := 20000
+
+	b.Run("blake3", func(b *testing.B) {
+		b.ReportAllocs()
+		b.SetBytes(int64(length))
+		buf := make([]byte, length)
+		rand.Read(buf)
+		for i := 0; i < b.N; i++ {
+			blake3.Sum256(buf)
+		}
+	})
+	b.Run("SHA256 double", func(b *testing.B) {
+		b.ReportAllocs()
+		b.SetBytes(int64(length))
+		buf := make([]byte, length)
+		rand.Read(buf)
+		for i := 0; i < b.N; i++ {
+			chainhash.DoubleHashB(buf)
+		}
+	})
 }

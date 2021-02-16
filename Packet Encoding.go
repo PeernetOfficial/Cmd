@@ -26,8 +26,8 @@ import (
 	"math/rand"
 
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"golang.org/x/crypto/salsa20"
+	"lukechampine.com/blake3"
 )
 
 // packetRaw is a decrypted P2P message
@@ -59,7 +59,7 @@ func packetDecrypt(raw []byte, receiverPublicKey *btcec.PublicKey) (packet *pack
 	copy(key[:], receiverPublicKey.SerializeCompressed()[1:]) // bit 0 from PublicKey.Y is ignored here, but is negligible
 	salsa20.XORKeyStream(signature[:], signature[:], nonce, &key)
 
-	senderPublicKey, _, err = btcec.RecoverCompact(btcec.S256(), signature[:], chainhash.DoubleHashB(raw[:len(raw)-signatureSize]))
+	senderPublicKey, _, err = btcec.RecoverCompact(btcec.S256(), signature[:], hashData(raw[:len(raw)-signatureSize]))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -109,7 +109,7 @@ func packetEncrypt(senderPrivateKey *btcec.PrivateKey, receiverPublicKey *btcec.
 	salsa20.XORKeyStream(raw[4:8+len(packet.Payload)+len(garbage)], raw[4:8+len(packet.Payload)+len(garbage)], nonce, &key)
 
 	// add signature
-	signature, err := btcec.SignCompact(btcec.S256(), senderPrivateKey, chainhash.DoubleHashB(raw[:len(raw)-signatureSize]), true)
+	signature, err := btcec.SignCompact(btcec.S256(), senderPrivateKey, hashData(raw[:len(raw)-signatureSize]), true)
 	if err != nil {
 		return nil, err
 	}
@@ -137,4 +137,10 @@ func packetGarbage(packetLength int) (random []byte) {
 		return nil
 	}
 	return b
+}
+
+// hashData abstracts the hash function.
+func hashData(data []byte) (hash []byte) {
+	hash32 := blake3.Sum256(data)
+	return hash32[:]
 }
