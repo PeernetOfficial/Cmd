@@ -11,6 +11,7 @@ This is the test client.
 * Check TURN code https://github.com/pion/turn
 * Check STUN code https://github.com/ccding/go-stun
 * Identify errors that are OS specific, such as in AutoAssignPort
+* Packet level DDoS protection
 
 ## Encryption and Hashing functions
 

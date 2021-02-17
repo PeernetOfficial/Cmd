@@ -83,3 +83,27 @@ func BenchmarkHash(b *testing.B) {
 		}
 	})
 }
+
+func TestEncryption2(t *testing.T) {
+	privateKey, publicKey, err := secp256k1NewPrivateKey()
+	if err != nil {
+		fmt.Printf("Error: %s\n", err.Error())
+		return
+	}
+
+	packet1 := packetRaw{Protocol: 0, Command: 0}
+
+	for n := 0; n < 1000; n++ {
+		raw1, err := packetEncrypt(privateKey, publicKey, &packet1)
+		if err != nil {
+			return
+		}
+		packet1d, _, err := packetDecrypt(raw1, publicKey)
+		if err != nil {
+			fmt.Printf("Error %s\n", err.Error())
+			return
+		}
+		fmt.Printf("Command %d payload %v\n", packet1d.Command, packet1d.Payload)
+	}
+
+}

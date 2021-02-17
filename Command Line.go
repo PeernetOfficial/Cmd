@@ -67,7 +67,9 @@ func showHelp() {
 		"net list all       Lists all IPs\n" +
 		"status             Get current status\n" +
 		"chat all           Send text to all peers\n" +
+		"peer list          List current peers\n" +
 		"debug key create   Create Public-Private Key pair\n" +
+		"debug key self     List current Public-Private Key pair\n" +
 		"\n")
 }
 
@@ -100,6 +102,23 @@ func userCommands() {
 
 			fmt.Printf("Private Key: %s\n", hex.EncodeToString(privateKey.Serialize()))
 			fmt.Printf("Public Key: %s\n", hex.EncodeToString(publicKey.SerializeCompressed()))
+
+		case "debug key self":
+			fmt.Printf("Private Key: %s\n", hex.EncodeToString(peerPrivateKey.Serialize()))
+			fmt.Printf("Public Key: %s\n", hex.EncodeToString(peerPublicKey.SerializeCompressed()))
+
+		case "peer list":
+			for _, peer := range PeerlistGet() {
+				fmt.Printf("* %s\n", peer.address.String())
+				fmt.Printf("  Public Key: %s\n", hex.EncodeToString(peer.peerPublicKey.SerializeCompressed()))
+				network := "(not set)"
+				if peer.network != nil {
+					network = peer.network.listen.String()
+				}
+				fmt.Printf("  Network adapter: %s\n", network)
+				fmt.Printf("  Packets sent: %d\n", peer.statsPacketSent)
+				fmt.Printf("  Packets received: %d\n", peer.statsPacketReceived)
+			}
 
 		case "chat all":
 			if text, valid := getUserOptionString(reader); valid {

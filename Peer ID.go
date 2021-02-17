@@ -14,6 +14,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"sync/atomic"
 
 	"github.com/btcsuite/btcd/btcec"
 )
@@ -23,7 +24,7 @@ var peerPrivateKey *btcec.PrivateKey
 var peerPublicKey *btcec.PublicKey
 
 func initPeerID() {
-	peerList = make(map[btcec.PublicKey]*PeerInfo)
+	peerList = make(map[[btcec.PubKeyBytesLenCompressed]byte]*PeerInfo)
 
 	// load existing key from config, if available
 	if len(config.PrivateKey) > 0 {
@@ -65,9 +66,13 @@ type PeerInfo struct {
 	peerPublicKey *btcec.PublicKey // Public key
 	network       *network         // Network interface used for communicating with the peer. If empty, try all.
 	address       *net.UDPAddr     // Remote address of the peer (IP:Port)
+
+	// statistics
+	statsPacketSent     uint64 // Count of packets sent
+	statsPacketReceived uint64 // Count of packets received
 }
 
-var peerList map[btcec.PublicKey]*PeerInfo
+var peerList map[[btcec.PubKeyBytesLenCompressed]byte]*PeerInfo
 var peerlistMutex sync.RWMutex
 
 // PeerlistAdd adds a new peer to the peer list. It does not validate the peer info. If the peer is already added, it does nothing.
@@ -75,12 +80,12 @@ func PeerlistAdd(peer *PeerInfo) {
 	peerlistMutex.Lock()
 	defer peerlistMutex.Unlock()
 
-	_, ok := peerList[*peer.peerPublicKey]
+	_, ok := peerList[publicKey2Compressed(peer.peerPublicKey)]
 	if ok {
 		return
 	}
 
-	peerList[*peer.peerPublicKey] = peer
+	peerList[publicKey2Compressed(peer.peerPublicKey)] = peer
 }
 
 // PeerlistRemove removes a peer from the peer list.
@@ -88,7 +93,7 @@ func PeerlistRemove(peer *PeerInfo) {
 	peerlistMutex.Lock()
 	defer peerlistMutex.Unlock()
 
-	delete(peerList, *peer.peerPublicKey)
+	delete(peerList, publicKey2Compressed(peer.peerPublicKey))
 }
 
 // PeerlistGet returns the full peer list
@@ -103,8 +108,25 @@ func PeerlistGet() (peers []*PeerInfo) {
 	return peers
 }
 
+// PeerlistLookup returns the peer from the list with the public key
+func PeerlistLookup(publicKey *btcec.PublicKey) (peer *PeerInfo) {
+	peerlistMutex.RLock()
+	defer peerlistMutex.RUnlock()
+
+	peer, _ = peerList[publicKey2Compressed(publicKey)]
+	return peer
+}
+
+func publicKey2Compressed(publicKey *btcec.PublicKey) [btcec.PubKeyBytesLenCompressed]byte {
+	var key [btcec.PubKeyBytesLenCompressed]byte
+	copy(key[:], publicKey.SerializeCompressed())
+	return key
+}
+
 // send sends a raw packet to the peer
 func (peer *PeerInfo) send(packet *packetRaw) (err error) {
+	packet.Protocol = 0
+
 	raw, err := packetEncrypt(peerPrivateKey, peer.peerPublicKey, packet)
 	if err != nil {
 		return err
@@ -134,8 +156,10 @@ func (peer *PeerInfo) send(packet *packetRaw) (err error) {
 	}
 
 	if successCount == 0 {
-		err = errors.New("Unsuccessful send")
+		return errors.New("Unsuccessful send")
 	}
+
+	atomic.AddUint64(&peer.statsPacketSent, 1)
 
 	return nil
 }

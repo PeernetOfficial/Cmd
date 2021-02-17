@@ -38,7 +38,7 @@ func initNetwork() {
 		config.ListenWorkers = 2
 	}
 	for n := 0; n < config.ListenWorkers; n++ {
-		go handlePackets(rawPacketsIncoming)
+		go packetWorker(rawPacketsIncoming)
 	}
 
 	// check if user specified where to listen
