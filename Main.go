@@ -9,7 +9,8 @@ package main
 func init() {
 	loadConfig()
 	initPeerID()
-	initMulticast()
+	initMulticastIPv6()
+	//initMulticastIPv4)
 	initNetwork()
 	loadSeedList()
 }

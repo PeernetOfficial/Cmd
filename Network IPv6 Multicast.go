@@ -40,14 +40,14 @@ var ipv6MulticastPublicKey *btcec.PublicKey
 
 const ipv6MulticastPrivateKeyH = "016ad30bfb369926523bf18d136298b6c31d0817e9fb6c21feed89ae22cad788"
 
-func initMulticast() {
+func initMulticastIPv6() {
 	if configPK, err := hex.DecodeString(ipv6MulticastPrivateKeyH); err == nil {
 		ipv6MulticastPrivateKey, ipv6MulticastPublicKey = btcec.PrivKeyFromBytes(btcec.S256(), configPK)
 	}
 }
 
-// MulticastJoin joins the Multicast group
-func (network *network) MulticastJoin() (err error) {
+// MulticastIPv6Join joins the Multicast group
+func (network *network) MulticastIPv6Join() (err error) {
 	if ipv6MulticastPrivateKey == nil || ipv6MulticastPublicKey == nil {
 		return
 	}
@@ -55,7 +55,6 @@ func (network *network) MulticastJoin() (err error) {
 	network.multicastIP = net.ParseIP(ipv6MulticastGroup)
 
 	// listen on a special socket
-	//multicastAddress := &net.UDPAddr{IP: network.address.IP, Port: ipv6MulticastPort}
 	network.multicastSocket, err = reuseport.ListenPacket("udp6", net.JoinHostPort(network.address.IP.String(), strconv.Itoa(ipv6MulticastPort)))
 	if err != nil {
 		return err
@@ -95,15 +94,15 @@ func (network *network) MulticastJoin() (err error) {
 		}
 	}
 
-	go network.MulticastListen()
-	go network.MulticastSend()
+	go network.MulticastIPv6Listen()
+	go network.MulticastIPv6Send()
 
 	return nil
 }
 
-// MulticastListen listens for incoming multicast packets
+// MulticastIPv6Listen listens for incoming multicast packets
 // Fork from network.Listen! Keep any changes synced.
-func (network *network) MulticastListen() {
+func (network *network) MulticastIPv6Listen() {
 	for {
 		// Buffer: Must be created for each packet as it is passed as pointer.
 		// If the buffer is too small, ReadFromUDP only reads until its length and returns this error: "wsarecvfrom: A message sent on a datagram socket was larger than the internal message buffer or some other network limit, or the buffer used to receive a datagram into was smaller than the datagram itself."
@@ -126,8 +125,8 @@ func (network *network) MulticastListen() {
 	}
 }
 
-// MulticastSend sends out multicast messages to discover peers at the same site
-func (network *network) MulticastSend() {
+// MulticastIPv6Send sends out multicast messages to discover peers at the same site
+func (network *network) MulticastIPv6Send() {
 	time.Sleep(1 * time.Second)
 
 	for {

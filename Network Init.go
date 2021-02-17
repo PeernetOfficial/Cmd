@@ -101,10 +101,10 @@ func networkPrepareListen(ipA string, port int) (err error) {
 	// Success - port is open. Add to the list and start accepting incoming messages.
 	if IsIPv4(ip) {
 		networks4 = append(networks4, network)
+		//network.MulticastIPv4Join()
 	} else {
 		networks6 = append(networks6, network)
-
-		network.MulticastJoin()
+		network.MulticastIPv6Join()
 	}
 
 	go network.Listen()
