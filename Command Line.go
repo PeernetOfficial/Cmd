@@ -111,11 +111,12 @@ func userCommands() {
 			for _, peer := range PeerlistGet() {
 				fmt.Printf("* %s\n", peer.address.String())
 				fmt.Printf("  Public Key: %s\n", hex.EncodeToString(peer.peerPublicKey.SerializeCompressed()))
-				network := "(not set)"
+				networkAddr := "(not set)"
 				if peer.network != nil {
-					network = peer.network.listen.String()
+					networkAddr = peer.network.address.String()
 				}
-				fmt.Printf("  Network adapter: %s\n", network)
+				fmt.Printf("  Network adapter listen: %s\n", networkAddr)
+				fmt.Printf("  Peer address: %s\n", peer.address.String())
 				fmt.Printf("  Packets sent: %d\n", peer.statsPacketSent)
 				fmt.Printf("  Packets received: %d\n", peer.statsPacketReceived)
 			}

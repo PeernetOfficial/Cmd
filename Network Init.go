@@ -16,13 +16,16 @@ import (
 	"net"
 	"strconv"
 	"time"
+
+	"github.com/btcsuite/btcd/btcec"
 )
 
 // networkWire is an incoming packet
 type networkWire struct {
-	network *network     // network which received the packet
-	sender  *net.UDPAddr // sender of the packet
-	raw     []byte       // buffer
+	network           *network         // network which received the packet
+	sender            *net.UDPAddr     // sender of the packet
+	receiverPublicKey *btcec.PublicKey // public key associated with the receiver
+	raw               []byte           // buffer
 }
 
 var (
@@ -106,7 +109,7 @@ func networkPrepareListen(ipA string, port int) (err error) {
 
 	go network.Listen()
 
-	log.Printf("Listen on UDP %s\n", network.listen.String())
+	log.Printf("Listen on UDP %s\n", network.address.String())
 
 	return nil
 }

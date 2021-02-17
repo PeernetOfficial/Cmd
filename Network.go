@@ -17,11 +17,12 @@ import (
 // network is a connection adapter through one network interface (adapter).
 // Note that for each IP on the same adapter separate network entries are created.
 type network struct {
-	iface       *net.Interface // Network interface belonging to the IP. May not be set.
-	ipnet       *net.IPNet     // IP network the listening address belongs to. May not be set.
-	multicastIP net.IP         // Multicast IP, IPv6 only.
-	listen      *net.UDPAddr   // IP:Port where the server listens
-	socket      *net.UDPConn   // active socket for send/receive
+	iface           *net.Interface // Network interface belonging to the IP. May not be set.
+	ipnet           *net.IPNet     // IP network the listening address belongs to. May not be set.
+	address         *net.UDPAddr   // IP:Port where the server listens
+	socket          *net.UDPConn   // active socket for send/receive
+	multicastIP     net.IP         // Multicast IP, IPv6 only.
+	multicastSocket net.PacketConn // Multicast socket, IPv6 only.
 }
 
 // networks is a list of all connected networks
@@ -41,12 +42,12 @@ func (network *network) AutoAssignPort(ip net.IP, port int) (err error) {
 
 	// Find an available port. Sometimes the network interface might not be ready when the service is started immediately after boot. Full error: "listen udp6 [REDACTED]:[REDACTED]: bind: The requested address is not valid in its context."
 	// To fix this, try up to 4 times, wait 20 seconds in between each try.
-	connectPortTry := func(port int) (listen *net.UDPAddr, socket *net.UDPConn, err error) {
+	connectPortTry := func(port int) (address *net.UDPAddr, socket *net.UDPConn, err error) {
 		for retryCount := 0; retryCount < 4; retryCount++ {
-			listen = &net.UDPAddr{IP: ip, Port: port}
-			socket, err = net.ListenUDP(networkA, listen)
+			address = &net.UDPAddr{IP: ip, Port: port}
+			socket, err = net.ListenUDP(networkA, address)
 			if err == nil {
-				return listen, socket, nil
+				return address, socket, nil
 			}
 			if !strings.Contains(err.Error(), "address is not valid in its context") {
 				break
@@ -57,18 +58,18 @@ func (network *network) AutoAssignPort(ip net.IP, port int) (err error) {
 	}
 
 	if port != 0 {
-		network.listen, network.socket, err = connectPortTry(port)
+		network.address, network.socket, err = connectPortTry(port)
 		return err
 	}
 
 	// try default main port, then alternative ones
-	network.listen, network.socket, err = connectPortTry(defaultPort)
+	network.address, network.socket, err = connectPortTry(defaultPort)
 	if err == nil {
 		return nil
 	}
 
 	for port := startPortDefault2; port < startPortDefault2+maxPorts; port++ {
-		network.listen, network.socket, err = connectPortTry(port)
+		network.address, network.socket, err = connectPortTry(port)
 		if err == nil {
 			return nil
 		}
@@ -106,14 +107,14 @@ func (network *network) Listen() {
 		}
 
 		// send the packet to a channel which is processed by multiple workers.
-		rawPacketsIncoming <- networkWire{network: network, sender: sender, raw: buffer[:length]}
+		rawPacketsIncoming <- networkWire{network: network, sender: sender, raw: buffer[:length], receiverPublicKey: peerPublicKey}
 	}
 }
 
 // packetWorker handles incoming packets.
 func packetWorker(packets <-chan networkWire) {
 	for packet := range packets {
-		decoded, senderPublicKey, err := packetDecrypt(packet.raw, peerPublicKey)
+		decoded, senderPublicKey, err := packetDecrypt(packet.raw, packet.receiverPublicKey)
 		if err != nil {
 			log.Printf("packetWorker Error decrypting packet from '%s': %s\n", packet.sender.String(), err.Error())
 			continue
