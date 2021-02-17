@@ -41,7 +41,6 @@ func (network *network) BroadcastIPv4() (err error) {
 	}
 
 	// listen on a special socket
-	//network.broadcastSocket, err = net.DialUDP("udp4", nil, &net.UDPAddr{IP: network.address.IP, Port: ipv4MulticastPort})
 	network.broadcastSocket, err = reuseport.ListenPacket("udp4", net.JoinHostPort(network.address.IP.String(), strconv.Itoa(ipv4BroadcastPort)))
 	if err != nil {
 		return err
@@ -50,10 +49,14 @@ func (network *network) BroadcastIPv4() (err error) {
 	go network.BroadcastIPv4Listen()
 	go network.BroadcastIPv4Send()
 
+	if network.ipnet == nil {
+		go network.BroadcastIPv4SendAllInterfaces()
+	}
+
 	return nil
 }
 
-// BroadcastIPv4Listen listens for incoming multicast packets
+// BroadcastIPv4Listen listens for incoming broadcast packets
 // Fork from network.Listen! Keep any changes synced.
 func (network *network) BroadcastIPv4Listen() {
 	for {
@@ -80,18 +83,19 @@ func (network *network) BroadcastIPv4Listen() {
 	}
 }
 
-// BroadcastIPv4Send sends out multicast messages to discover peers at the same site
+// BroadcastIPv4Send sends out broadcast messages to discover peers at the same site
 func (network *network) BroadcastIPv4Send() {
 	time.Sleep(1 * time.Second)
 	var broadcastIPs []net.IP
 
-	broadcastIPs = append(broadcastIPs, net.ParseIP("255.255.255.255"))
+	broadcastIPs = append(broadcastIPs, net.IPv4bcast)
 
-	// auto detect the braodcast IPs
-	//if network.iface != nil {
-	//} else {
-	//	interfaceList, err := net.Interfaces()
-	//}
+	// auto detect the broadcast IPs
+	if network.ipnet != nil {
+		if ip2 := ipv4DirectedBroadcast(network.ipnet); ip2 != nil {
+			broadcastIPs = append(broadcastIPs, ip2)
+		}
+	}
 
 	for {
 		raw, err := packetEncrypt(peerPrivateKey, ipv4BroadcastPublicKey, &packetRaw{Protocol: 0, Command: 0})
@@ -103,7 +107,7 @@ func (network *network) BroadcastIPv4Send() {
 
 		// send out the wire
 		for _, ip := range broadcastIPs {
-			err = network.send(ip, ipv6MulticastPort, raw)
+			err = network.send(ip, ipv4BroadcastPort, raw)
 			if err != nil {
 				log.Printf("Error sending UDP packet: %v\n", err)
 			}
@@ -113,79 +117,80 @@ func (network *network) BroadcastIPv4Send() {
 	}
 }
 
-/*
-// MulticastIPv4Send sends out multicast messages to discover peers at the same site
-func (network *network) MulticastIPv4Send() {
+// BroadcastIPv4SendAllInterfaces sends out broadcast messages to all network interfaces
+func (network *network) BroadcastIPv4SendAllInterfaces() {
 	time.Sleep(1 * time.Second)
+	var broadcastNets []*net.IPNet
 
-	// prepare sockets for sending out the multicast messages
-	var sockets []*net.UDPConn
-
-	interfaceMulticastSocketOpen := func(iface *net.Interface) (err error) {
-		addresses, err := iface.Addrs()
-		if err != nil {
-			return err
-		}
-
-		// iterate through all IPs of the interfaces
-		for _, address := range addresses {
-			addressIP := address.(*net.IPNet).IP
-			fmt.Printf("Interface %s IP %s\n", iface.Name, addressIP.String())
-			if !IsIPv4(addressIP) || rfc3927Net.Contains(addressIP) {
-				continue
-			}
-			socket, err := net.DialUDP("udp", &net.UDPAddr{IP: addressIP, Port: ipv4MulticastPort}, &net.UDPAddr{IP: network.multicastIP, Port: ipv4MulticastPort})
-			if err != nil {
-				log.Printf("MulticastIPv4Send error dialing: %v\n", err)
-				continue
-			}
-			sockets = append(sockets, socket)
-		}
-
-		return nil
+	interfaceList, err := net.Interfaces()
+	if err != nil {
+		return
 	}
 
-	if network.iface != nil {
-		if err := interfaceMulticastSocketOpen(network.iface); err != nil {
-			return
-		}
-	} else {
-		interfaceList, err := net.Interfaces()
+	for _, iface := range interfaceList {
+		addresses, err := iface.Addrs()
 		if err != nil {
-			return
+			continue
 		}
-		for _, ifaceSingle := range interfaceList {
-			interfaceMulticastSocketOpen(&ifaceSingle)
+
+		for _, address := range addresses {
+			net1 := address.(*net.IPNet)
+
+			if !IsIPv4(net1.IP) || rfc3927Net.Contains(net1.IP) {
+				continue
+			}
+
+			broadcastNets = append(broadcastNets, net1)
 		}
 	}
 
 	for {
-		raw, err := packetEncrypt(peerPrivateKey, ipv4MulticastPublicKey, &packetRaw{Protocol: 0, Command: 0})
+		raw, err := packetEncrypt(peerPrivateKey, ipv4BroadcastPublicKey, &packetRaw{Protocol: 0, Command: 0})
 		if err != nil {
 			log.Printf("Error creating packet: %s\n", err.Error())
 			time.Sleep(time.Second * 10)
 			continue
 		}
 
-		// send it out to all sockets
-		for _, socket := range sockets {
-			_, err = socket.Write(raw)
+		// send out the wire
+		for _, net1 := range broadcastNets {
+			ipBroadcast := ipv4DirectedBroadcast(net1)
+			if ipBroadcast == nil {
+				continue
+			}
+
+			err = network.send(ipBroadcast, ipv4BroadcastPort, raw)
 			if err != nil {
 				log.Printf("Error sending UDP packet: %v\n", err)
 			}
 		}
 
-		// DEBUG
-		//laddr, err := net.ResolveUDPAddr("udp", "10.0.0.98:0")
-		//laddr, err := net.ResolveUDPAddr("udp", "0.0.0.0:0")
-		//socket2, err := net.DialUDP("udp", laddr, &net.UDPAddr{IP: network.multicastIP, Port: ipv4MulticastPort})
-		//if err != nil {
-		//	log.Printf("Error sending UDP packet: %v\n", err)
-		//}
-
-		// send out the wire
-		//_, err = network.multicastSocket.WriteTo(raw, &net.UDPAddr{IP: network.multicastIP, Port: ipv4MulticastPort})
 		time.Sleep(time.Second * 10)
 	}
 }
-*/
+
+func ipv4DirectedBroadcast(n *net.IPNet) net.IP {
+	ip4 := n.IP.To4()
+	if ip4 == nil {
+		return nil
+	}
+	last := make(net.IP, len(ip4))
+	copy(last, ip4)
+	for i := range ip4 {
+		last[i] |= ^n.Mask[i]
+	}
+	return last
+}
+
+var (
+	// rfc3927Net specifies the IPv4 auto configuration address block as
+	// defined by RFC3927 (169.254.0.0/16).
+	rfc3927Net = ipNet("169.254.0.0", 16, 32)
+)
+
+// ipNet returns a net.IPNet struct given the passed IP address string, number
+// of one bits to include at the start of the mask, and the total number of bits
+// for the mask.
+func ipNet(ip string, ones, bits int) net.IPNet {
+	return net.IPNet{IP: net.ParseIP(ip), Mask: net.CIDRMask(ones, bits)}
+}
