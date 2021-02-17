@@ -110,5 +110,4 @@ func IsIPv6(IP net.IP) bool {
 	return IP.To4() == nil && IP.To16() != nil
 }
 
-// TODO: Incorporate functions ReachabilityTo and Routable from:
-// https://github.com/tendermint/go-p2p/blob/master/netaddress.go
+// relevant code at https://github.com/btcsuite/btcd/blob/master/addrmgr/network.go and https://github.com/tendermint/go-p2p/blob/master/netaddress.go

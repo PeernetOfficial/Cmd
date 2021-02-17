@@ -10,7 +10,7 @@ func init() {
 	loadConfig()
 	initPeerID()
 	initMulticastIPv6()
-	//initMulticastIPv4)
+	initBroadcastIPv4()
 	initNetwork()
 	loadSeedList()
 }
@@ -19,4 +19,3 @@ func main() {
 	go autoAnnounce()
 	userCommands()
 }
-

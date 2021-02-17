@@ -23,6 +23,7 @@ type network struct {
 	socket          *net.UDPConn   // active socket for send/receive
 	multicastIP     net.IP         // Multicast IP, IPv6 only.
 	multicastSocket net.PacketConn // Multicast socket, IPv6 only.
+	broadcastSocket net.PacketConn // Broadcast socket, IPv4 only.
 }
 
 // networks is a list of all connected networks
@@ -137,7 +138,7 @@ func packetWorker(packets <-chan networkWire) {
 			if peer.address == nil {
 				peer.address = packet.sender
 			} else if !peer.address.IP.Equal(packet.sender.IP) || peer.address.Port != packet.sender.Port {
-				log.Printf("DEBUG Mismatch previous connection %s new connection %s\n", peer.address.String(), packet.sender.String())
+				//log.Printf("DEBUG Mismatch previous connection %s new connection %s\n", peer.address.String(), packet.sender.String())
 			}
 		}
 
