@@ -95,8 +95,8 @@ func (network *network) Listen() {
 		length, sender, err := network.socket.ReadFromUDP(buffer)
 
 		if err != nil {
-			log.Printf("Error receiving UDP message: %v\n", err) // Only log for debug purposes.
-			time.Sleep(time.Millisecond * 50)                    // In case of endless errors, prevent ddos of CPU.
+			log.Printf("Listen Error receiving UDP message: %v\n", err) // Only log for debug purposes.
+			time.Sleep(time.Millisecond * 50)                           // In case of endless errors, prevent ddos of CPU.
 			continue
 		}
 
@@ -115,7 +115,7 @@ func packetWorker(packets <-chan networkWire) {
 	for packet := range packets {
 		decoded, senderPublicKey, err := packetDecrypt(packet.raw, peerPublicKey)
 		if err != nil {
-			log.Printf("Error decrypting packet from '%s': %s\n", packet.sender.String(), err.Error())
+			log.Printf("packetWorker Error decrypting packet from '%s': %s\n", packet.sender.String(), err.Error())
 			continue
 		}
 
@@ -132,6 +132,12 @@ func packetWorker(packets <-chan networkWire) {
 		peer := PeerlistLookup(senderPublicKey)
 		if peer != nil {
 			atomic.AddUint64(&peer.statsPacketReceived, 1)
+			peer.network = packet.network
+			if peer.address == nil {
+				peer.address = packet.sender
+			} else if !peer.address.IP.Equal(packet.sender.IP) || peer.address.Port != packet.sender.Port {
+				log.Printf("DEBUG Mismatch previous connection %s new connection %s\n", peer.address.String(), packet.sender.String())
+			}
 		}
 
 		// process the packet

@@ -71,8 +71,6 @@ func initNetwork() {
 	if err := networkPrepareListen("::", 0); err != nil {
 		log.Printf("initNetwork Error listen on all IPv6 addresses (::): %s\n", err.Error())
 	}
-
-	// TODO: join multicast https://pkg.go.dev/golang.org/x/net/ipv6
 }
 
 // networkPrepareListen prepares to listen on the given IP address. If port is 0, one is chosen automatically.
@@ -102,6 +100,8 @@ func networkPrepareListen(ipA string, port int) (err error) {
 		networks4 = append(networks4, network)
 	} else {
 		networks6 = append(networks6, network)
+
+		network.MulticastJoin()
 	}
 
 	go network.Listen()
