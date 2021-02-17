@@ -55,9 +55,8 @@ func packetDecrypt(raw []byte, receiverPublicKey *btcec.PublicKey) (packet *pack
 	// Verify the signature and extract the public key from it.
 	var signature [signatureSize]byte
 	copy(signature[:], raw[len(raw)-signatureSize:])
-	var key [32]byte
-	copy(key[:], receiverPublicKey.SerializeCompressed()[1:]) // bit 0 from PublicKey.Y is ignored here, but is negligible
-	salsa20.XORKeyStream(signature[:], signature[:], nonce, &key)
+	keySalsa := publicKeyToSalsa20Key(receiverPublicKey)
+	salsa20.XORKeyStream(signature[:], signature[:], nonce, keySalsa)
 
 	senderPublicKey, _, err = btcec.RecoverCompact(btcec.S256(), signature[:], hashData(raw[:len(raw)-signatureSize]))
 	if err != nil {
@@ -66,7 +65,7 @@ func packetDecrypt(raw []byte, receiverPublicKey *btcec.PublicKey) (packet *pack
 
 	// Decrypt the packet using Salsa20.
 	bufferDecrypted := make([]byte, len(raw)-signatureSize-4) // full length -signature -nonce
-	salsa20.XORKeyStream(bufferDecrypted[:], raw[4:len(raw)-signatureSize], nonce, &key)
+	salsa20.XORKeyStream(bufferDecrypted[:], raw[4:len(raw)-signatureSize], nonce, keySalsa)
 
 	// copy all fields
 	packet = &packetRaw{Protocol: bufferDecrypted[0], Command: bufferDecrypted[1]}
@@ -88,7 +87,6 @@ func packetEncrypt(senderPrivateKey *btcec.PrivateKey, receiverPublicKey *btcec.
 	garbage := packetGarbage(packetLengthMin + len(packet.Payload))
 	raw = make([]byte, packetLengthMin+len(packet.Payload)+len(garbage))
 
-	// Nonce. TODO: Translate into a pseudo random number
 	nonceC := rand.Uint32()
 	nonce := make([]byte, 8)
 	binary.LittleEndian.PutUint32(nonce[0:4], nonceC)
@@ -103,10 +101,8 @@ func packetEncrypt(senderPrivateKey *btcec.PrivateKey, receiverPublicKey *btcec.
 	copy(raw[8+len(packet.Payload):8+len(packet.Payload)+len(garbage)], garbage)
 
 	// encrypt it using Salsa20
-	var key [32]byte
-	copy(key[:], receiverPublicKey.SerializeCompressed()[1:]) // bit 0 from PublicKey.Y is ignored here, but is negligible
-
-	salsa20.XORKeyStream(raw[4:8+len(packet.Payload)+len(garbage)], raw[4:8+len(packet.Payload)+len(garbage)], nonce, &key)
+	keySalsa := publicKeyToSalsa20Key(receiverPublicKey)
+	salsa20.XORKeyStream(raw[4:8+len(packet.Payload)+len(garbage)], raw[4:8+len(packet.Payload)+len(garbage)], nonce, keySalsa)
 
 	// add signature
 	signature, err := btcec.SignCompact(btcec.S256(), senderPrivateKey, hashData(raw[:len(raw)-signatureSize]), true)
@@ -114,7 +110,7 @@ func packetEncrypt(senderPrivateKey *btcec.PrivateKey, receiverPublicKey *btcec.
 		return nil, err
 	}
 
-	salsa20.XORKeyStream(signature[:], signature[:], nonce, &key)
+	salsa20.XORKeyStream(signature[:], signature[:], nonce, keySalsa)
 	copy(raw[len(raw)-signatureSize:], signature)
 
 	return raw, nil
@@ -137,6 +133,13 @@ func packetGarbage(packetLength int) (random []byte) {
 		return nil
 	}
 	return b
+}
+
+func publicKeyToSalsa20Key(publicKey *btcec.PublicKey) (key *[32]byte) {
+	// bit 0 from PublicKey.Y is ignored here, but is negligible for this purpose
+	key = new([32]byte)
+	copy(key[:], publicKey.SerializeCompressed()[1:])
+	return key
 }
 
 // hashData abstracts the hash function.
