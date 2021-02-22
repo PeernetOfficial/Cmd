@@ -71,10 +71,10 @@ func initNetwork() {
 	}
 
 	// Listen on all IPv4 and IPv6 addresses
-	//if err := networkPrepareListen("0.0.0.0", 0); err != nil {
+	//if _, err := networkPrepareListen("0.0.0.0", 0); err != nil {
 	//	log.Printf("initNetwork Error listen on all IPv4 addresses (0.0.0.0): %s\n", err.Error())
 	//}
-	//if err := networkPrepareListen("::", 0); err != nil {
+	//if _, err := networkPrepareListen("::", 0); err != nil {
 	//	log.Printf("initNetwork Error listen on all IPv6 addresses (::): %s\n", err.Error())
 	//}
 
@@ -164,6 +164,7 @@ func addListenAddress(addr *net.UDPAddr) {
 }
 
 // IsAddressSelf checks if the senders address is actually listening address. This prevents loopback packets from being considered.
+// Note: This does not work when listening on 0.0.0.0 or ::1 and binding the sending socket to that.
 func IsAddressSelf(addr *net.UDPAddr) bool {
 	if addr == nil {
 		return false

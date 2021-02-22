@@ -6,10 +6,9 @@ Author:     Peter Kleissner
 IPv6 Multicast implementation to support discovery of peers within the same network (Site-local).
 Loopback is enabled, which means that Multicast packets sent will be looped back and received by any local listeners. This allows to connect local processes with each other.
 
-We do not use the standard listener of Peernet (network.socket), as the following behavior is outside of the official specification and only exists for local peer discovery.
 Using the separate Multicast port, it allows sending unsolicited announcements without knowing the target's public key. Instead, a hard-coded key is used.
 
-The Multicast listener opens port 12911 with SO_REUSEADDR to allow multiple processes receive the incoming Multicast packets.
+The Multicast listener opens port 12912 with SO_REUSEADDR to allow multiple processes receive the incoming Multicast packets.
 [1] mentions "If two sockets are bound to the same interface and port and are members of the same multicast group, data will be delivered to both sockets, rather than an arbitrarily chosen one."
 
 [1] https://docs.microsoft.com/en-us/windows/win32/winsock/using-so-reuseaddr-and-so-exclusiveaddruse
@@ -31,7 +30,7 @@ import (
 
 // Multicast group is site-local. Group ID is 112.
 const ipv6MulticastGroup = "ff05::112"
-const ipv6MulticastPort = 12911
+const ipv6MulticastPort = 12912
 
 // special Public-Private Key pair for local discovery
 var ipv6MulticastPrivateKey *btcec.PrivateKey
@@ -94,7 +93,6 @@ func (network *network) MulticastIPv6Join() (err error) {
 	}
 
 	go network.MulticastIPv6Listen()
-	go network.MulticastIPv6Send()
 
 	return nil
 }
@@ -119,7 +117,7 @@ func (network *network) MulticastIPv6Listen() {
 			continue
 		}
 
-		//fmt.Printf("MulticastIPv6Listen from %s\n", sender.String())
+		//fmt.Printf("MulticastIPv6Listen from %s at network %s\n", sender.String(), network.address.String())
 
 		if length < packetLengthMin {
 			// Discard packets that do not meet the minimum length.
@@ -131,24 +129,13 @@ func (network *network) MulticastIPv6Listen() {
 	}
 }
 
-// MulticastIPv6Send sends out multicast messages to discover peers at the same site
-func (network *network) MulticastIPv6Send() {
-	time.Sleep(1 * time.Second)
-
-	for {
-		raw, err := packetEncrypt(peerPrivateKey, ipv6MulticastPublicKey, &packetRaw{Protocol: 0, Command: 0})
-		if err != nil {
-			log.Printf("Error creating packet: %s\n", err.Error())
-			time.Sleep(time.Second * 10)
-			continue
-		}
-
-		// send out the wire
-		err = network.send(network.multicastIP, ipv6MulticastPort, raw)
-		if err != nil {
-			log.Printf("Error sending UDP packet: %v\n", err)
-		}
-
-		time.Sleep(time.Second * 10)
+// MulticastIPv6Send sends out a single multicast messages to discover peers at the same site
+func (network *network) MulticastIPv6Send() (err error) {
+	raw, err := packetEncrypt(peerPrivateKey, ipv6MulticastPublicKey, &packetRaw{Protocol: 0, Command: 0})
+	if err != nil {
+		return err
 	}
+
+	// send out the wire
+	return network.send(network.multicastIP, ipv6MulticastPort, raw)
 }

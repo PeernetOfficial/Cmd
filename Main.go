@@ -12,10 +12,13 @@ func init() {
 	initMulticastIPv6()
 	initBroadcastIPv4()
 	initNetwork()
-	loadSeedList()
+	initSeedList()
 }
 
 func main() {
+	go bootstrap()
+	go autoMulticastBroadcast()
 	go autoAnnounce()
+	
 	userCommands()
 }

@@ -12,7 +12,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"strconv"
 	"sync"
 	"sync/atomic"
 
@@ -149,9 +148,9 @@ func (peer *PeerInfo) send(packet *packetRaw) (err error) {
 }
 
 // sendAllNetworks sends a raw packet via all networks
-func (peer *PeerInfo) sendAllNetworks(packet *packetRaw, remote *net.UDPAddr) (err error) {
+func sendAllNetworks(receiverPublicKey *btcec.PublicKey, packet *packetRaw, remote *net.UDPAddr) (err error) {
 	packet.Protocol = 0
-	raw, err := packetEncrypt(peerPrivateKey, peer.peerPublicKey, packet)
+	raw, err := packetEncrypt(peerPrivateKey, receiverPublicKey, packet)
 	if err != nil {
 		return err
 	}
@@ -160,6 +159,11 @@ func (peer *PeerInfo) sendAllNetworks(packet *packetRaw, remote *net.UDPAddr) (e
 
 	if IsIPv6(remote.IP.To16()) {
 		for _, network := range networks6 {
+			// Do not mix link-local unicast targets with non link-local networks (only when iface is known, i.e. not catch all local)
+			if network.iface != nil && remote.IP.IsLinkLocalUnicast() != network.address.IP.IsLinkLocalUnicast() {
+				continue
+			}
+
 			err = network.send(remote.IP, remote.Port, raw)
 			if err == nil {
 				successCount++
@@ -167,6 +171,11 @@ func (peer *PeerInfo) sendAllNetworks(packet *packetRaw, remote *net.UDPAddr) (e
 		}
 	} else {
 		for _, network := range networks4 {
+			// Do not mix link-local unicast targets with non link-local networks (only when iface is known, i.e. not catch all local)
+			if network.iface != nil && remote.IP.IsLinkLocalUnicast() != network.address.IP.IsLinkLocalUnicast() {
+				continue
+			}
+
 			err = network.send(remote.IP, remote.Port, raw)
 			if err == nil {
 				successCount++
@@ -175,48 +184,8 @@ func (peer *PeerInfo) sendAllNetworks(packet *packetRaw, remote *net.UDPAddr) (e
 	}
 
 	if successCount == 0 {
-		return errors.New("Unsuccessful send")
+		return errors.New("no successful send")
 	}
-
-	atomic.AddUint64(&peer.statsPacketSent, 1)
 
 	return nil
-}
-
-// PeerFromSeed attempts to create a peer structure based on the input seed info.
-// Address must be in "IP:Port" form. The Public Key must be hex encoded.
-func PeerFromSeed(Address, PublicKey string) (peer *PeerInfo, remote *net.UDPAddr, err error) {
-	host, portA, err := net.SplitHostPort(Address)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	portI, err := strconv.Atoi(portA)
-	if err != nil {
-		return nil, nil, err
-	} else if portI <= 0 || portI > 65535 {
-		return nil, nil, errors.New("Invalid port number")
-	}
-
-	ip := net.ParseIP(host)
-	if ip == nil {
-		return nil, nil, errors.New("Invalid input IP")
-	}
-
-	publicKeyB, err := hex.DecodeString(PublicKey)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	publicKeyP, err := btcec.ParsePubKey(publicKeyB, btcec.S256())
-	if err != nil {
-		return nil, nil, err
-	}
-
-	remote = &net.UDPAddr{IP: ip, Port: portI}
-	peer = &PeerInfo{peerPublicKey: publicKeyP}
-
-	// Network is intentionally kept empty. It will try sending it from all available networks.
-
-	return peer, remote, nil
 }

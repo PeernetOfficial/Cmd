@@ -24,6 +24,7 @@ type network struct {
 	multicastIP     net.IP         // Multicast IP, IPv6 only.
 	multicastSocket net.PacketConn // Multicast socket, IPv6 only.
 	broadcastSocket net.PacketConn // Broadcast socket, IPv4 only.
+	broadcastIPv4   []net.IP       // Broadcast IPs, IPv4 only.
 }
 
 // networks is a list of all connected networks

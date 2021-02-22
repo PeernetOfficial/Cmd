@@ -19,7 +19,7 @@ import (
 	"github.com/libp2p/go-reuseport"
 )
 
-const ipv4BroadcastPort = 12911
+const ipv4BroadcastPort = 12912
 
 // special Public-Private Key pair for local discovery
 var ipv4BroadcastPrivateKey *btcec.PrivateKey
@@ -45,12 +45,9 @@ func (network *network) BroadcastIPv4() (err error) {
 		return err
 	}
 
-	go network.BroadcastIPv4Listen()
-	go network.BroadcastIPv4Send()
+	network.broadcastIPv4 = networkToIPv4BroadcastIPs(network.ipnet)
 
-	if network.ipnet == nil {
-		go network.BroadcastIPv4SendAllInterfaces()
-	}
+	go network.BroadcastIPv4Listen()
 
 	return nil
 }
@@ -74,7 +71,7 @@ func (network *network) BroadcastIPv4Listen() {
 			continue
 		}
 
-		//fmt.Printf("BroadcastIPv4Listen from %s\n", sender.String())
+		//fmt.Printf("BroadcastIPv4Listen from %s at network %s\n", sender.String(), network.address.String())
 
 		if length < packetLengthMin {
 			// Discard packets that do not meet the minimum length.
@@ -86,90 +83,62 @@ func (network *network) BroadcastIPv4Listen() {
 	}
 }
 
-// BroadcastIPv4Send sends out broadcast messages to discover peers at the same site
-func (network *network) BroadcastIPv4Send() {
-	time.Sleep(1 * time.Second)
-	var broadcastIPs []net.IP
-
-	broadcastIPs = append(broadcastIPs, net.IPv4bcast)
-
-	// auto detect the broadcast IPs
-	if network.ipnet != nil {
-		if ip2 := ipv4DirectedBroadcast(network.ipnet); ip2 != nil {
-			broadcastIPs = append(broadcastIPs, ip2)
-		}
+// BroadcastIPv4Send sends out a single broadcast messages to discover peers
+func (network *network) BroadcastIPv4Send() (err error) {
+	raw, err := packetEncrypt(peerPrivateKey, ipv4BroadcastPublicKey, &packetRaw{Protocol: 0, Command: 0})
+	if err != nil {
+		return err
 	}
 
-	for {
-		raw, err := packetEncrypt(peerPrivateKey, ipv4BroadcastPublicKey, &packetRaw{Protocol: 0, Command: 0})
+	// send out the wire
+	for _, ip := range network.broadcastIPv4 {
+		err = network.send(ip, ipv4BroadcastPort, raw)
 		if err != nil {
-			log.Printf("Error creating packet: %s\n", err.Error())
-			time.Sleep(time.Second * 10)
-			continue
+			log.Printf("Error sending UDP packet: %v\n", err)
 		}
-
-		// send out the wire
-		for _, ip := range broadcastIPs {
-			err = network.send(ip, ipv4BroadcastPort, raw)
-			if err != nil {
-				log.Printf("Error sending UDP packet: %v\n", err)
-			}
-		}
-
-		time.Sleep(time.Second * 10)
 	}
+
+	return nil
 }
 
-// BroadcastIPv4SendAllInterfaces sends out broadcast messages to all network interfaces
-func (network *network) BroadcastIPv4SendAllInterfaces() {
-	time.Sleep(1 * time.Second)
-	var broadcastNets []*net.IPNet
+// networkToIPv4BroadcastIPs generates the IPv4 addresses to send out the broadcast to
+func networkToIPv4BroadcastIPs(ipnet *net.IPNet) (broadcastIPs []net.IP) {
+	broadcastIPs = append(broadcastIPs, net.IPv4bcast)
 
-	interfaceList, err := net.Interfaces()
-	if err != nil {
-		return
-	}
-
-	for _, iface := range interfaceList {
-		addresses, err := iface.Addrs()
+	if ipnet != nil {
+		if ip2 := ipv4DirectedBroadcast(ipnet); ip2 != nil {
+			broadcastIPs = append(broadcastIPs, ip2)
+		}
+	} else {
+		interfaceList, err := net.Interfaces()
 		if err != nil {
-			continue
+			return
 		}
 
-		for _, address := range addresses {
-			net1 := address.(*net.IPNet)
-
-			if !IsIPv4(net1.IP) || rfc3927Net.Contains(net1.IP) {
-				continue
-			}
-
-			broadcastNets = append(broadcastNets, net1)
-		}
-	}
-
-	for {
-		raw, err := packetEncrypt(peerPrivateKey, ipv4BroadcastPublicKey, &packetRaw{Protocol: 0, Command: 0})
-		if err != nil {
-			log.Printf("Error creating packet: %s\n", err.Error())
-			time.Sleep(time.Second * 10)
-			continue
-		}
-
-		// send out the wire
-		for _, net1 := range broadcastNets {
-			ipBroadcast := ipv4DirectedBroadcast(net1)
-			if ipBroadcast == nil {
-				continue
-			}
-
-			err = network.send(ipBroadcast, ipv4BroadcastPort, raw)
+		for _, iface := range interfaceList {
+			addresses, err := iface.Addrs()
 			if err != nil {
-				log.Printf("Error sending UDP packet: %v\n", err)
+				continue
+			}
+
+			for _, address := range addresses {
+				net1 := address.(*net.IPNet)
+
+				// TODO: Does the rfc3927Net make sense?
+				if !IsIPv4(net1.IP) || rfc3927Net.Contains(net1.IP) {
+					continue
+				}
+
+				if ip2 := ipv4DirectedBroadcast(net1); ip2 != nil {
+					broadcastIPs = append(broadcastIPs, ip2)
+				}
 			}
 		}
-
-		time.Sleep(time.Second * 10)
 	}
+
+	// TODO: Result could contain duplicates, filter them out
+
+	return broadcastIPs
 }
 
 func ipv4DirectedBroadcast(n *net.IPNet) net.IP {
