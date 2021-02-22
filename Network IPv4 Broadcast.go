@@ -10,7 +10,6 @@ package main
 
 import (
 	"encoding/hex"
-	"fmt"
 	"log"
 	"net"
 	"strconv"
@@ -71,7 +70,11 @@ func (network *network) BroadcastIPv4Listen() {
 			continue
 		}
 
-		fmt.Printf("Broadcast from %s\n", sender.String())
+		if IsAddressSelf(sender.(*net.UDPAddr)) {
+			continue
+		}
+
+		//fmt.Printf("BroadcastIPv4Listen from %s\n", sender.String())
 
 		if length < packetLengthMin {
 			// Discard packets that do not meet the minimum length.

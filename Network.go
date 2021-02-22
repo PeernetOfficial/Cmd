@@ -7,9 +7,9 @@ Author:     Peter Kleissner
 package main
 
 import (
+	"errors"
 	"log"
 	"net"
-	"strings"
 	"sync/atomic"
 	"time"
 )
@@ -30,9 +30,7 @@ type network struct {
 var networks4, networks6 []*network
 
 // Default ports to use. This may be randomized in the future to prevent fingerprinting (and subsequent blocking) by corporate and ISP firewalls.
-const defaultPort = 'p'         // 112
-const startPortDefault2 = 12912 // 03270h = 12912 = 'p2'
-const maxPorts = 100
+const defaultPort = 'p' // 112
 
 // AutoAssignPort assigns a port for the given IP. Use port 0 for zero configuration.
 func (network *network) AutoAssignPort(ip net.IP, port int) (err error) {
@@ -41,21 +39,24 @@ func (network *network) AutoAssignPort(ip net.IP, port int) (err error) {
 		networkA = "udp4"
 	}
 
-	// Find an available port. Sometimes the network interface might not be ready when the service is started immediately after boot. Full error: "listen udp6 [REDACTED]:[REDACTED]: bind: The requested address is not valid in its context."
-	// To fix this, try up to 4 times, wait 20 seconds in between each try.
+	// A common error return is "bind: The requested address is not valid in its context.".
+	// This error was observed when the network interface might not be ready after boot but also when listening on a link-local IPv4 (169.254.) for an inactive adapter.
+	// Previously the algorithm retried up to n times, but this would unnecessarily delay startup in case the IP is actual unlistenable.
 	connectPortTry := func(port int) (address *net.UDPAddr, socket *net.UDPConn, err error) {
-		for retryCount := 0; retryCount < 4; retryCount++ {
-			address = &net.UDPAddr{IP: ip, Port: port}
-			socket, err = net.ListenUDP(networkA, address)
-			if err == nil {
-				return address, socket, nil
-			}
-			if !strings.Contains(err.Error(), "address is not valid in its context") {
-				break
-			}
-			time.Sleep(time.Second * 20)
+		address = &net.UDPAddr{IP: ip, Port: port}
+		if socket, err = net.ListenUDP(networkA, address); err != nil {
+			return nil, nil, err
 		}
-		return nil, nil, err
+
+		if port == 0 {
+			localAddr := socket.LocalAddr()
+			if localAddr == nil {
+				return nil, nil, errors.New("invalid port assignment")
+			}
+			address.Port = localAddr.(*net.UDPAddr).Port
+		}
+
+		return address, socket, nil
 	}
 
 	if port != 0 {
@@ -63,17 +64,13 @@ func (network *network) AutoAssignPort(ip net.IP, port int) (err error) {
 		return err
 	}
 
-	// try default main port, then alternative ones
-	network.address, network.socket, err = connectPortTry(defaultPort)
-	if err == nil {
+	// try default main port, then random
+	if network.address, network.socket, err = connectPortTry(defaultPort); err == nil {
 		return nil
 	}
 
-	for port := startPortDefault2; port < startPortDefault2+maxPorts; port++ {
-		network.address, network.socket, err = connectPortTry(port)
-		if err == nil {
-			return nil
-		}
+	if network.address, network.socket, err = connectPortTry(0); err == nil {
+		return nil
 	}
 
 	return err
@@ -133,13 +130,9 @@ func packetWorker(packets <-chan networkWire) {
 
 		peer := PeerlistLookup(senderPublicKey)
 		if peer != nil {
+			// Existing peers: Update statistics and network address if new
 			atomic.AddUint64(&peer.statsPacketReceived, 1)
-			peer.network = packet.network
-			if peer.address == nil {
-				peer.address = packet.sender
-			} else if !peer.address.IP.Equal(packet.sender.IP) || peer.address.Port != packet.sender.Port {
-				//log.Printf("DEBUG Mismatch previous connection %s new connection %s\n", peer.address.String(), packet.sender.String())
-			}
+			peer.registerConnection(packet.sender, packet.network)
 		}
 
 		// process the packet
@@ -157,4 +150,16 @@ func packetWorker(packets <-chan networkWire) {
 		}
 
 	}
+}
+
+// registerConnection registers an incoming connection for an existing peer. If new, it will add to the list.
+func (peer *PeerInfo) registerConnection(remote *net.UDPAddr, network *network) {
+	for _, connection := range peer.connections {
+		// Port comparison todo
+		if connection.address.IP.Equal(remote.IP) && connection.network.address.IP.Equal(network.address.IP) {
+			// Connection already established
+			return
+		}
+	}
+	peer.connections = append(peer.connections, connection{address: remote, network: network})
 }

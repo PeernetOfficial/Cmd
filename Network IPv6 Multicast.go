@@ -6,9 +6,8 @@ Author:     Peter Kleissner
 IPv6 Multicast implementation to support discovery of peers within the same network (Site-local).
 Loopback is enabled, which means that Multicast packets sent will be looped back and received by any local listeners. This allows to connect local processes with each other.
 
-We do not use the standard listener of Peernet, as the following behavior is outside of the official specification and only exists for local peer discovery.
+We do not use the standard listener of Peernet (network.socket), as the following behavior is outside of the official specification and only exists for local peer discovery.
 Using the separate Multicast port, it allows sending unsolicited announcements without knowing the target's public key. Instead, a hard-coded key is used.
-For security reasons the Multicast listener accepts only local IP addresses.
 
 The Multicast listener opens port 12911 with SO_REUSEADDR to allow multiple processes receive the incoming Multicast packets.
 [1] mentions "If two sockets are bound to the same interface and port and are members of the same multicast group, data will be delivered to both sockets, rather than an arbitrarily chosen one."
@@ -114,6 +113,13 @@ func (network *network) MulticastIPv6Listen() {
 			time.Sleep(time.Millisecond * 50)                           // In case of endless errors, prevent ddos of CPU.
 			continue
 		}
+
+		// skip incoming packets that were looped back
+		if IsAddressSelf(sender.(*net.UDPAddr)) {
+			continue
+		}
+
+		//fmt.Printf("MulticastIPv6Listen from %s\n", sender.String())
 
 		if length < packetLengthMin {
 			// Discard packets that do not meet the minimum length.

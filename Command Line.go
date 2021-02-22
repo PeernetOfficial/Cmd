@@ -62,9 +62,7 @@ func getUserOptionInt(reader *bufio.Reader) (response int, valid bool) {
 func showHelp() {
 	fmt.Print("Please enter a command:\n")
 	fmt.Print("help               Show this help\n" +
-		"connect            Connect to Peernet\n" +
-		"disconnect         Disconnect from Peernet\n" +
-		"net list all       Lists all IPs\n" +
+		"net list           Lists all network adapters and their IPs\n" +
 		"status             Get current status\n" +
 		"chat all           Send text to all peers\n" +
 		"peer list          List current peers\n" +
@@ -90,7 +88,7 @@ func userCommands() {
 		case "help", "?":
 			showHelp()
 
-		case "net list all":
+		case "net list":
 			fmt.Print(NetworkListOutput())
 
 		case "debug key create":
@@ -109,16 +107,17 @@ func userCommands() {
 
 		case "peer list":
 			for _, peer := range PeerlistGet() {
-				fmt.Printf("* %s\n", peer.address.String())
-				fmt.Printf("  Public Key: %s\n", hex.EncodeToString(peer.peerPublicKey.SerializeCompressed()))
-				networkAddr := "(not set)"
-				if peer.network != nil {
-					networkAddr = peer.network.address.String()
+				fmt.Printf("* %s\n", hex.EncodeToString(peer.peerPublicKey.SerializeCompressed()))
+				if len(peer.connections) > 0 {
+					fmt.Printf("  Connections:\n")
+					for _, connection := range peer.connections {
+						fmt.Printf("  %-30s  on adapter %s\n", connection.address.String(), connection.network.address.String())
+					}
+				} else {
+					fmt.Printf("  Connections: [none]\n")
 				}
-				fmt.Printf("  Network adapter listen: %s\n", networkAddr)
-				fmt.Printf("  Peer address: %s\n", peer.address.String())
-				fmt.Printf("  Packets sent: %d\n", peer.statsPacketSent)
-				fmt.Printf("  Packets received: %d\n", peer.statsPacketReceived)
+				fmt.Printf("  Packets sent:      %d\n", peer.statsPacketSent)
+				fmt.Printf("  Packets received:  %d\n", peer.statsPacketReceived)
 			}
 
 		case "chat all":
@@ -126,6 +125,28 @@ func userCommands() {
 				sendChatAll(text)
 			}
 
+		case "status":
+			fmt.Printf("----------------\nPublic Key: %s\n\n", hex.EncodeToString(peerPublicKey.SerializeCompressed()))
+
+			fmt.Printf("Listen Address                  Multicast IP out\n")
+
+			for _, network := range networks4 {
+				broadcastIPA := ""
+				if network.multicastIP != nil {
+					broadcastIPA = network.multicastIP.String()
+				}
+				fmt.Printf("%-30s  %-30s\n", network.address.String(), broadcastIPA)
+			}
+			for _, network := range networks6 {
+				fmt.Printf("%-30s  %-30s\n", network.address.String(), network.multicastIP.String())
+			}
+
+			fmt.Printf("\nPeer ID                                                             IP                              Sent      Received\n")
+			for _, peer := range PeerlistGet() {
+				fmt.Printf("%-66s  %-30s  %-8d  %-8d\n", hex.EncodeToString(peer.peerPublicKey.SerializeCompressed()), peer.connections[0].address.String(), peer.statsPacketSent, peer.statsPacketReceived)
+			}
+
+			fmt.Printf("\n")
 		}
 	}
 }

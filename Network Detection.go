@@ -71,7 +71,7 @@ func NetworkListOutput() (text string) {
 	// iterate through all interfaces
 	for _, ifaceSingle := range interfaceList {
 		text += "Interface " + ifaceSingle.Name + ":\n"
-		text += "  MAC:        " + ifaceSingle.HardwareAddr.String() + "\n"
+		//text += "  MAC:        " + ifaceSingle.HardwareAddr.String() + "\n"
 
 		addresses, err := ifaceSingle.Addrs()
 		if err != nil {
@@ -84,15 +84,16 @@ func NetworkListOutput() (text string) {
 			text += "  IP:         " + address.(*net.IPNet).IP.String() + "\n"
 		}
 
-		addresses2, err := ifaceSingle.MulticastAddrs()
-		if err != nil {
-			text += "  Error getting multicast addresses: " + err.Error() + "\n\n"
-			continue
-		}
+		// Subscribed Multicast IPs of adapters are not really newsworthy
+		//addresses2, err := ifaceSingle.MulticastAddrs()
+		//if err != nil {
+		//	text += "  Error getting multicast addresses: " + err.Error() + "\n\n"
+		//	continue
+		//}
 
-		for _, address := range addresses2 {
-			text += "  Multicast:  " + address.(*net.IPAddr).IP.String() + "\n"
-		}
+		//for _, address := range addresses2 {
+		//	text += "  Multicast:  " + address.(*net.IPAddr).IP.String() + "\n"
+		//}
 
 		text += "\n"
 	}

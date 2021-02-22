@@ -61,11 +61,17 @@ func secp256k1NewPrivateKey() (privateKey *btcec.PrivateKey, publicKey *btcec.Pu
 	return key, (*btcec.PublicKey)(&key.PublicKey), nil
 }
 
+// connection is an established connection between a remote IP address and a local network adapter.
+// New connections may only be created in case of successful INCOMING packets.
+type connection struct {
+	network *network     // network which received the packet
+	address *net.UDPAddr // address of the sender or receiver
+}
+
 // PeerInfo stores information about a single remote peer
 type PeerInfo struct {
 	peerPublicKey *btcec.PublicKey // Public key
-	network       *network         // Network interface used for communicating with the peer. If empty, try all.
-	address       *net.UDPAddr     // Remote address of the peer (IP:Port)
+	connections   []connection     // list of established connections to the peer
 
 	// statistics
 	statsPacketSent     uint64 // Count of packets sent
@@ -125,6 +131,10 @@ func publicKey2Compressed(publicKey *btcec.PublicKey) [btcec.PubKeyBytesLenCompr
 
 // send sends a raw packet to the peer
 func (peer *PeerInfo) send(packet *packetRaw) (err error) {
+	if len(peer.connections) == 0 {
+		return errors.New("no valid connection to peer")
+	}
+
 	packet.Protocol = 0
 
 	raw, err := packetEncrypt(peerPrivateKey, peer.peerPublicKey, packet)
@@ -132,23 +142,32 @@ func (peer *PeerInfo) send(packet *packetRaw) (err error) {
 		return err
 	}
 
+	atomic.AddUint64(&peer.statsPacketSent, 1)
+
 	// send out the wire
-	if peer.network != nil {
-		return peer.network.send(peer.address.IP, peer.address.Port, raw)
+	return peer.connections[0].network.send(peer.connections[0].address.IP, peer.connections[0].address.Port, raw)
+}
+
+// sendAllNetworks sends a raw packet via all networks
+func (peer *PeerInfo) sendAllNetworks(packet *packetRaw, remote *net.UDPAddr) (err error) {
+	packet.Protocol = 0
+	raw, err := packetEncrypt(peerPrivateKey, peer.peerPublicKey, packet)
+	if err != nil {
+		return err
 	}
 
 	successCount := 0
 
-	if IsIPv6(peer.address.IP.To16()) {
+	if IsIPv6(remote.IP.To16()) {
 		for _, network := range networks6 {
-			err = network.send(peer.address.IP, peer.address.Port, raw)
+			err = network.send(remote.IP, remote.Port, raw)
 			if err == nil {
 				successCount++
 			}
 		}
 	} else {
 		for _, network := range networks4 {
-			err = network.send(peer.address.IP, peer.address.Port, raw)
+			err = network.send(remote.IP, remote.Port, raw)
 			if err == nil {
 				successCount++
 			}
@@ -166,37 +185,38 @@ func (peer *PeerInfo) send(packet *packetRaw) (err error) {
 
 // PeerFromSeed attempts to create a peer structure based on the input seed info.
 // Address must be in "IP:Port" form. The Public Key must be hex encoded.
-func PeerFromSeed(Address, PublicKey string) (peer *PeerInfo, err error) {
+func PeerFromSeed(Address, PublicKey string) (peer *PeerInfo, remote *net.UDPAddr, err error) {
 	host, portA, err := net.SplitHostPort(Address)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	portI, err := strconv.Atoi(portA)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	} else if portI <= 0 || portI > 65535 {
-		return nil, errors.New("Invalid port number")
+		return nil, nil, errors.New("Invalid port number")
 	}
 
 	ip := net.ParseIP(host)
 	if ip == nil {
-		return nil, errors.New("Invalid input IP")
+		return nil, nil, errors.New("Invalid input IP")
 	}
 
 	publicKeyB, err := hex.DecodeString(PublicKey)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	publicKeyP, err := btcec.ParsePubKey(publicKeyB, btcec.S256())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	peer = &PeerInfo{peerPublicKey: publicKeyP, address: &net.UDPAddr{IP: ip, Port: portI}}
+	remote = &net.UDPAddr{IP: ip, Port: portI}
+	peer = &PeerInfo{peerPublicKey: publicKeyP}
 
 	// Network is intentionally kept empty. It will try sending it from all available networks.
 
-	return peer, nil
+	return peer, remote, nil
 }

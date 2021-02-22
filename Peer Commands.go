@@ -25,10 +25,9 @@ type packet2 struct {
 // Announcement handles an incoming announcement
 func (peer *PeerInfo) Announcement(msg *packet2) {
 	if peer == nil {
-		PeerlistAdd(&PeerInfo{peerPublicKey: msg.SenderPublicKey, network: msg.network, address: msg.address})
+		PeerlistAdd(&PeerInfo{peerPublicKey: msg.SenderPublicKey, connections: []connection{connection{network: msg.network, address: msg.address}}})
+		fmt.Printf("Incoming initial announcement from %s\n", msg.address.String())
 	}
-
-	fmt.Printf("Incoming announcement from %s\n", msg.address.String())
 }
 
 // Chat handles a chat message [debug]

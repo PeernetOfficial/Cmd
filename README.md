@@ -25,6 +25,7 @@ Before compiling, make sure to download and update all 3rd party packages:
 ```
 go get -u github.com/gofrs/uuid
 go get -u github.com/btcsuite/btcd/btcec
+go get -u github.com/libp2p/go-reuseport
 ```
 
 ## Settings
