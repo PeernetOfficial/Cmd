@@ -158,12 +158,19 @@ func packetWorker(packets <-chan networkWire) {
 
 // registerConnection registers an incoming connection for an existing peer. If new, it will add to the list.
 func (peer *PeerInfo) registerConnection(remote *net.UDPAddr, network *network) {
-	for _, connection := range peer.connections {
-		// Port comparison todo
-		if connection.address.IP.Equal(remote.IP) && connection.network.address.IP.Equal(network.address.IP) {
-			// Connection already established
+	for n := range peer.connections {
+		if peer.connections[n].address.IP.Equal(remote.IP) && peer.connections[n].network.address.IP.Equal(network.address.IP) {
+			// Connection already established. Verify port and update if necessary.
+			// Some NATs may rotate ports. Some mobile phone providers even rotate IPs which is not detected here.
+			if peer.connections[n].address.Port != remote.Port {
+				peer.connections[n].address.Port = remote.Port
+			}
+
 			return
 		}
 	}
+
 	peer.connections = append(peer.connections, connection{address: remote, network: network})
+
+	// TODO: connections could be sorted by priority (last packet time, speed, local vs remote IP)
 }
