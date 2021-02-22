@@ -89,17 +89,65 @@ func parseAddress(Address string) (remote *net.UDPAddr, err error) {
 	return &net.UDPAddr{IP: ip, Port: portI}, err
 }
 
+// contact tries to contact the root peer on all networks
+func (peer *rootPeer) contact() {
+	for _, address := range peer.addresses {
+		sendAllNetworks(peer.publicKey, &packetRaw{Command: 0}, address)
+	}
+}
+
 // bootstrap connects to the initial set of peers. It will also start the routine for ongoing sending of multicast/broadcast messages.
 func bootstrap() {
-	// initial contact to peer
-	for _, peer := range rootPeers {
-		for _, address := range peer.addresses {
-			//fmt.Printf("Send message to %s\n", address.String())
-			sendAllNetworks(peer.publicKey, &packetRaw{Command: 0}, address)
+	if len(rootPeers) == 0 {
+		log.Printf("bootstrap warning: Empty list of root peers. Connectivity relies on local peer discovery and incoming connections.\n")
+		return
+	}
+
+	contactRootPeers := func() {
+		for _, peer := range rootPeers {
+			if peer.peer == nil {
+				peer.contact()
+			}
 		}
 	}
 
-	// TODO: Continue trying to contact every X seconds until at least N peers are found
+	countConnectedRootPeers := func() (connectedCount, total int) {
+		for _, peer := range rootPeers {
+			if peer.peer != nil {
+				connectedCount++
+			} else if peer.peer = PeerlistLookup(peer.publicKey); peer.peer != nil {
+				connectedCount++
+			}
+		}
+		return connectedCount, len(rootPeers)
+	}
+
+	// initial contact to all root peer
+	contactRootPeers()
+
+	// Phase 1: First 10 minutes. Try every 7 seconds to connect to all root peers until at least 2 peers connected.
+	for n := 0; n < 10*60/7; n++ {
+		time.Sleep(time.Second * 7)
+
+		if connected, total := countConnectedRootPeers(); connected == total || connected >= 2 {
+			return
+		}
+
+		contactRootPeers()
+	}
+
+	// Phase 2: After that (if not 2 peers), try every 5 minutes to connect to remaining root peers for a maximum of 1 hour.
+	for n := 0; n < 1*60/5; n++ {
+		time.Sleep(time.Minute * 5)
+
+		contactRootPeers()
+
+		if connected, total := countConnectedRootPeers(); connected == total || connected >= 2 {
+			return
+		}
+	}
+
+	log.Printf("bootstrap unable to connect to at least 2 root peers, aborting\n")
 }
 
 func autoMulticastBroadcast() {
