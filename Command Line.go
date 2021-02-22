@@ -64,7 +64,7 @@ func showHelp() {
 	fmt.Print("help               Show this help\n" +
 		"net list           Lists all network adapters and their IPs\n" +
 		"status             Get current status\n" +
-		"chat all           Send text to all peers\n" +
+		"chat               Send text to all peers\n" +
 		"peer list          List current peers\n" +
 		"debug key create   Create Public-Private Key pair\n" +
 		"debug key self     List current Public-Private Key pair\n" +
@@ -107,7 +107,7 @@ func userCommands() {
 
 		case "peer list":
 			for _, peer := range PeerlistGet() {
-				fmt.Printf("* %s\n", hex.EncodeToString(peer.peerPublicKey.SerializeCompressed()))
+				fmt.Printf("* %s\n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()))
 				if len(peer.connections) > 0 {
 					fmt.Printf("  Connections:\n")
 					for _, connection := range peer.connections {
@@ -120,7 +120,7 @@ func userCommands() {
 				fmt.Printf("  Packets received:  %d\n", peer.statsPacketReceived)
 			}
 
-		case "chat all":
+		case "chat all", "chat":
 			if text, valid := getUserOptionString(reader); valid {
 				sendChatAll(text)
 			}
@@ -143,7 +143,7 @@ func userCommands() {
 
 			fmt.Printf("\nPeer ID                                                             IP                              Sent      Received\n")
 			for _, peer := range PeerlistGet() {
-				fmt.Printf("%-66s  %-30s  %-8d  %-8d\n", hex.EncodeToString(peer.peerPublicKey.SerializeCompressed()), peer.connections[0].address.String(), peer.statsPacketSent, peer.statsPacketReceived)
+				fmt.Printf("%-66s  %-30s  %-8d  %-8d\n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()), peer.connections[0].address.String(), peer.statsPacketSent, peer.statsPacketReceived)
 			}
 
 			fmt.Printf("\n")

@@ -9,7 +9,6 @@ package main
 import (
 	"fmt"
 	"net"
-	"time"
 
 	"github.com/btcsuite/btcd/btcec"
 )
@@ -25,9 +24,32 @@ type packet2 struct {
 // Announcement handles an incoming announcement
 func (peer *PeerInfo) Announcement(msg *packet2) {
 	if peer == nil {
-		PeerlistAdd(&PeerInfo{peerPublicKey: msg.SenderPublicKey, connections: []connection{connection{network: msg.network, address: msg.address}}})
+		peer = &PeerInfo{PublicKey: msg.SenderPublicKey, connections: []connection{{network: msg.network, address: msg.address}}}
+		PeerlistAdd(peer)
 		fmt.Printf("Incoming initial announcement from %s\n", msg.address.String())
+
+		// send the Response
+		peer.send(&packetRaw{Command: 1})
+
+		return
 	}
+	fmt.Printf("Incoming secondary announcement from %s\n", msg.address.String())
+
+	// Announcement from existing peer means the peer most likely restarted
+	peer.send(&packetRaw{Command: 1})
+}
+
+// Response handles the response to the announcement
+func (peer *PeerInfo) Response(msg *packet2) {
+	if peer == nil {
+		peer = &PeerInfo{PublicKey: msg.SenderPublicKey, connections: []connection{{network: msg.network, address: msg.address}}}
+		PeerlistAdd(peer)
+		fmt.Printf("Incoming initial response from %s\n", msg.address.String())
+
+		return
+	}
+
+	fmt.Printf("Incoming response from %s\n", msg.address.String())
 }
 
 // Chat handles a chat message [debug]
@@ -37,13 +59,13 @@ func (peer *PeerInfo) Chat(msg *packet2) {
 
 // autoAnnounce sends out the announcement message every 10 seconds to its peer list
 func autoAnnounce() {
-	for {
+	/*for {
 		time.Sleep(time.Second * 10)
 
 		for _, peer := range PeerlistGet() {
 			peer.send(&packetRaw{Command: 0})
 		}
-	}
+	}*/
 }
 
 func sendChatAll(text string) {

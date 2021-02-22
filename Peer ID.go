@@ -69,8 +69,8 @@ type connection struct {
 
 // PeerInfo stores information about a single remote peer
 type PeerInfo struct {
-	peerPublicKey *btcec.PublicKey // Public key
-	connections   []connection     // list of established connections to the peer
+	PublicKey   *btcec.PublicKey // Public key
+	connections []connection     // list of established connections to the peer
 
 	// statistics
 	statsPacketSent     uint64 // Count of packets sent
@@ -85,12 +85,12 @@ func PeerlistAdd(peer *PeerInfo) {
 	peerlistMutex.Lock()
 	defer peerlistMutex.Unlock()
 
-	_, ok := peerList[publicKey2Compressed(peer.peerPublicKey)]
+	_, ok := peerList[publicKey2Compressed(peer.PublicKey)]
 	if ok {
 		return
 	}
 
-	peerList[publicKey2Compressed(peer.peerPublicKey)] = peer
+	peerList[publicKey2Compressed(peer.PublicKey)] = peer
 }
 
 // PeerlistRemove removes a peer from the peer list.
@@ -98,7 +98,7 @@ func PeerlistRemove(peer *PeerInfo) {
 	peerlistMutex.Lock()
 	defer peerlistMutex.Unlock()
 
-	delete(peerList, publicKey2Compressed(peer.peerPublicKey))
+	delete(peerList, publicKey2Compressed(peer.PublicKey))
 }
 
 // PeerlistGet returns the full peer list
@@ -122,6 +122,14 @@ func PeerlistLookup(publicKey *btcec.PublicKey) (peer *PeerInfo) {
 	return peer
 }
 
+// PeerlistCount returns the current count of peers in the peer list
+func PeerlistCount() (count int) {
+	peerlistMutex.RLock()
+	defer peerlistMutex.RUnlock()
+
+	return len(peerList)
+}
+
 func publicKey2Compressed(publicKey *btcec.PublicKey) [btcec.PubKeyBytesLenCompressed]byte {
 	var key [btcec.PubKeyBytesLenCompressed]byte
 	copy(key[:], publicKey.SerializeCompressed())
@@ -136,7 +144,7 @@ func (peer *PeerInfo) send(packet *packetRaw) (err error) {
 
 	packet.Protocol = 0
 
-	raw, err := packetEncrypt(peerPrivateKey, peer.peerPublicKey, packet)
+	raw, err := packetEncrypt(peerPrivateKey, peer.PublicKey, packet)
 	if err != nil {
 		return err
 	}

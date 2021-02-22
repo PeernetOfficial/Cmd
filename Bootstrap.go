@@ -18,6 +18,7 @@ import (
 	"log"
 	"net"
 	"strconv"
+	"time"
 
 	"github.com/btcsuite/btcd/btcec"
 )
@@ -33,9 +34,11 @@ var rootPeers map[[btcec.PubKeyBytesLenCompressed]byte]*rootPeer
 
 // initSeedList loads the seed list from the config
 func initSeedList() {
+	rootPeers = make(map[[btcec.PubKeyBytesLenCompressed]byte]*rootPeer)
+
 loopSeedList:
 	for _, seed := range config.SeedList {
-		peer := rootPeer{}
+		peer := &rootPeer{}
 
 		// parse the Public Key
 		publicKeyB, err := hex.DecodeString(seed.PublicKey)
@@ -59,6 +62,8 @@ loopSeedList:
 
 			peer.addresses = append(peer.addresses, address)
 		}
+
+		rootPeers[publicKey2Compressed(peer.publicKey)] = peer
 	}
 }
 
@@ -89,26 +94,46 @@ func bootstrap() {
 	// initial contact to peer
 	for _, peer := range rootPeers {
 		for _, address := range peer.addresses {
+			//fmt.Printf("Send message to %s\n", address.String())
 			sendAllNetworks(peer.publicKey, &packetRaw{Command: 0}, address)
 		}
 	}
 
-	// TODO: Continue trying to contact every X seconds until at least 1 peer is found
-
+	// TODO: Continue trying to contact every X seconds until at least N peers are found
 }
 
 func autoMulticastBroadcast() {
-	for _, network := range networks6 {
-		if err := network.MulticastIPv6Send(); err != nil {
-			log.Printf("bootstrap error multicast from network address '%s': %v", network.address.IP.String(), err.Error())
+	sendMulticastBroadcast := func() {
+		for _, network := range networks6 {
+			if err := network.MulticastIPv6Send(); err != nil {
+				log.Printf("bootstrap error multicast from network address '%s': %v", network.address.IP.String(), err.Error())
+			}
+		}
+
+		for _, network := range networks4 {
+			if err := network.BroadcastIPv4Send(); err != nil {
+				log.Printf("bootstrap error broadcast from network address '%s': %v", network.address.IP.String(), err.Error())
+			}
 		}
 	}
 
-	for _, network := range networks4 {
-		if err := network.BroadcastIPv4Send(); err != nil {
-			log.Printf("bootstrap error broadcast from network address '%s': %v", network.address.IP.String(), err.Error())
+	// Send out multicast/broadcast immediately.
+	sendMulticastBroadcast()
+
+	// Phase 1: Resend every 10 seconds until at least 1 peer in the peer list
+	for {
+		time.Sleep(time.Second * 10)
+
+		if PeerlistCount() >= 1 {
+			break
 		}
+
+		sendMulticastBroadcast()
 	}
 
-	// TODO: Every X minutes
+	// Phase 2: Every 10 minutes.
+	for {
+		time.Sleep(time.Minute * 10)
+		sendMulticastBroadcast()
+	}
 }

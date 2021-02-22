@@ -143,6 +143,9 @@ func packetWorker(packets <-chan networkWire) {
 		case 0: // Announce
 			peer.Announcement(message)
 
+		case 1: // Response
+			peer.Response(message)
+
 		case 10: // Chat [debug]
 			peer.Chat(message)
 
