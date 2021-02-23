@@ -114,6 +114,7 @@ func initNetwork() {
 				}
 
 				log.Printf("initNetwork error listening on network adapter '%s' IPv4 '%s': %s\n", iface.Name, net1.IP.String(), err.Error())
+				continue
 			}
 
 			addListenAddress(netw.address)

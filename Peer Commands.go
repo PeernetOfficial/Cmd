@@ -24,12 +24,13 @@ type packet2 struct {
 // Announcement handles an incoming announcement
 func (peer *PeerInfo) Announcement(msg *packet2) {
 	if peer == nil {
-		peer = &PeerInfo{PublicKey: msg.SenderPublicKey, connections: []connection{{network: msg.network, address: msg.address}}}
-		PeerlistAdd(peer)
+		peer, added := PeerlistAdd(msg.SenderPublicKey, &connection{network: msg.network, address: msg.address})
 		fmt.Printf("Incoming initial announcement from %s\n", msg.address.String())
 
 		// send the Response
-		peer.send(&packetRaw{Command: 1})
+		if added {
+			peer.send(&packetRaw{Command: 1})
+		}
 
 		return
 	}
@@ -42,14 +43,13 @@ func (peer *PeerInfo) Announcement(msg *packet2) {
 // Response handles the response to the announcement
 func (peer *PeerInfo) Response(msg *packet2) {
 	if peer == nil {
-		peer = &PeerInfo{PublicKey: msg.SenderPublicKey, connections: []connection{{network: msg.network, address: msg.address}}}
-		PeerlistAdd(peer)
+		peer, _ = PeerlistAdd(msg.SenderPublicKey, &connection{network: msg.network, address: msg.address})
 		fmt.Printf("Incoming initial response from %s\n", msg.address.String())
 
 		return
 	}
 
-	fmt.Printf("Incoming response from %s\n", msg.address.String())
+	fmt.Printf("Incoming response from %s on %s\n", msg.address.String(), msg.network.address.String())
 }
 
 // Chat handles a chat message [debug]
@@ -66,6 +66,14 @@ func autoAnnounce() {
 			peer.send(&packetRaw{Command: 0})
 		}
 	}*/
+}
+
+// autoPingAll automatically pings all peers. This has multiple important reasons:
+// * Keeping the UDP port open at NAT, if applicable
+// * Making sure to recognize invalid connections and drop them.
+func autoPingAll() {
+
+	// TODO: If peer was previously unresponsive for X times, start pinging on all available ports.
 }
 
 func sendChatAll(text string) {

@@ -69,8 +69,9 @@ type connection struct {
 
 // PeerInfo stores information about a single remote peer
 type PeerInfo struct {
-	PublicKey   *btcec.PublicKey // Public key
-	connections []connection     // list of established connections to the peer
+	PublicKey        *btcec.PublicKey // Public key
+	connections      []*connection    // list of established connections to the peer
+	connectionLatest *connection      // Latest valid connection. Allows to switch on the fly between connections; if one becomes invalid, try others.
 
 	// statistics
 	statsPacketSent     uint64 // Count of packets sent
@@ -81,16 +82,23 @@ var peerList map[[btcec.PubKeyBytesLenCompressed]byte]*PeerInfo
 var peerlistMutex sync.RWMutex
 
 // PeerlistAdd adds a new peer to the peer list. It does not validate the peer info. If the peer is already added, it does nothing.
-func PeerlistAdd(peer *PeerInfo) {
+func PeerlistAdd(PublicKey *btcec.PublicKey, connections ...*connection) (peer *PeerInfo, added bool) {
+	if len(connections) == 0 {
+		return nil, false
+	}
+
 	peerlistMutex.Lock()
 	defer peerlistMutex.Unlock()
 
-	_, ok := peerList[publicKey2Compressed(peer.PublicKey)]
+	peer, ok := peerList[publicKey2Compressed(PublicKey)]
 	if ok {
-		return
+		return peer, false
 	}
 
+	peer = &PeerInfo{PublicKey: PublicKey, connections: connections, connectionLatest: connections[0]}
 	peerList[publicKey2Compressed(peer.PublicKey)] = peer
+
+	return peer, true
 }
 
 // PeerlistRemove removes a peer from the peer list.
@@ -151,8 +159,37 @@ func (peer *PeerInfo) send(packet *packetRaw) (err error) {
 
 	atomic.AddUint64(&peer.statsPacketSent, 1)
 
-	// send out the wire
-	return peer.connections[0].network.send(peer.connections[0].address.IP, peer.connections[0].address.Port, raw)
+	// Send out the wire. Use connectionLatest if available.
+	// Failover: If sending fails and there are other connections available, try those. Automatically update connectionLatest if one is successful.
+	// Windows: This works great on if the adapter is disabled, however, does not detect if the network cable is unplugged.
+	if peer.connectionLatest != nil {
+		useConnection := peer.connectionLatest
+		if err = useConnection.network.send(useConnection.address.IP, useConnection.address.Port, raw); err != nil && len(peer.connections) > 1 {
+			err = peer.sendFailover(useConnection, raw)
+		}
+		return err
+	}
+
+	if err = peer.connections[0].network.send(peer.connections[0].address.IP, peer.connections[0].address.Port, raw); err != nil && len(peer.connections) > 1 {
+		err = peer.sendFailover(peer.connections[0], raw)
+	}
+	return err
+}
+
+// sendFailover tries to send the packet over any other different (than the failed) connection.
+// If send works, it will switch over connectionLatest.
+// Windows: A common error when the network adapter is disabled is "wsasendto: The requested address is not valid in its context".
+func (peer *PeerInfo) sendFailover(failed *connection, raw []byte) (err error) {
+	for _, connection := range peer.connections {
+		if connection != failed {
+			err = connection.network.send(connection.address.IP, connection.address.Port, raw)
+			if err == nil {
+				peer.connectionLatest = connection
+				return nil
+			}
+		}
+	}
+	return err
 }
 
 // sendAllNetworks sends a raw packet via all networks
@@ -196,4 +233,25 @@ func sendAllNetworks(receiverPublicKey *btcec.PublicKey, packet *packetRaw, remo
 	}
 
 	return nil
+}
+
+// registerConnection registers an incoming connection for an existing peer. If new, it will add to the list.
+// Currently there is only a connectionLatest indicating the latest valid connection. In the future other priority such as last packet time, speed, local vs remote IP might be used.
+func (peer *PeerInfo) registerConnection(remote *net.UDPAddr, network *network) {
+	for n := range peer.connections {
+		if peer.connections[n].address.IP.Equal(remote.IP) && peer.connections[n].network.address.IP.Equal(network.address.IP) {
+			// Connection already established. Verify port and update if necessary.
+			// Some NATs may rotate ports. Some mobile phone providers even rotate IPs which is not detected here.
+			if peer.connections[n].address.Port != remote.Port {
+				peer.connections[n].address.Port = remote.Port
+			}
+
+			peer.connectionLatest = peer.connections[n]
+			return
+		}
+	}
+
+	peer.connections = append(peer.connections, &connection{address: remote, network: network})
+
+	peer.connectionLatest = peer.connections[len(peer.connections)-1]
 }
