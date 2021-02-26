@@ -47,14 +47,14 @@ func TestEncryption1(t *testing.T) {
 		return
 	}
 
-	packet1 := packetRaw{Protocol: 0, Command: 1, Payload: []byte{1, 2, 3}}
+	packet1 := core.PacketRaw{Protocol: 0, Command: 1, Payload: []byte{1, 2, 3}}
 
-	raw1, err := packetEncrypt(privateKey, publicKey, &packet1)
+	raw1, err := core.PacketEncrypt(privateKey, publicKey, &packet1)
 	if err != nil {
 		return
 	}
 
-	packet1d, _, err := packetDecrypt(raw1, publicKey)
+	packet1d, _, err := core.PacketDecrypt(raw1, publicKey)
 	if err != nil {
 		fmt.Printf("Error %s\n", err.Error())
 		return
@@ -93,14 +93,14 @@ func TestEncryption2(t *testing.T) {
 		return
 	}
 
-	packet1 := packetRaw{Protocol: 0, Command: 0}
+	packet1 := core.PacketRaw{Protocol: 0, Command: 0}
 
 	for n := 0; n < 1000; n++ {
-		raw1, err := packetEncrypt(privateKey, publicKey, &packet1)
+		raw1, err := core.PacketEncrypt(privateKey, publicKey, &packet1)
 		if err != nil {
 			return
 		}
-		packet1d, _, err := packetDecrypt(raw1, publicKey)
+		packet1d, _, err := core.PacketDecrypt(raw1, publicKey)
 		if err != nil {
 			fmt.Printf("Error %s\n", err.Error())
 			return
