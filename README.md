@@ -10,7 +10,6 @@ First get all the dependencies. Below list contains both dependencies from the c
 
 ```
 go get -u github.com/PeernetOfficial/core
-go get -u github.com/gofrs/uuid
 go get -u github.com/btcsuite/btcd/btcec
 go get -u github.com/libp2p/go-reuseport
 go get -u lukechampine.com/blake3
