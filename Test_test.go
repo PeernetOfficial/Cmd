@@ -1,3 +1,4 @@
+// Random tests for debugging. Not actual functionality tests.
 package main
 
 import (
@@ -6,13 +7,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/PeernetOfficial/core"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"lukechampine.com/blake3"
 )
 
 func TestSignCompact(t *testing.T) {
-	privateKey, publicKey, err := secp256k1NewPrivateKey()
+	privateKey, publicKey, err := core.Secp256k1NewPrivateKey()
 	if err != nil {
 		fmt.Printf("Error: %s\n", err.Error())
 		return
@@ -39,7 +41,7 @@ func TestSignCompact(t *testing.T) {
 }
 
 func TestEncryption1(t *testing.T) {
-	privateKey, publicKey, err := secp256k1NewPrivateKey()
+	privateKey, publicKey, err := core.Secp256k1NewPrivateKey()
 	if err != nil {
 		fmt.Printf("Error: %s\n", err.Error())
 		return
@@ -85,7 +87,7 @@ func BenchmarkHash(b *testing.B) {
 }
 
 func TestEncryption2(t *testing.T) {
-	privateKey, publicKey, err := secp256k1NewPrivateKey()
+	privateKey, publicKey, err := core.Secp256k1NewPrivateKey()
 	if err != nil {
 		fmt.Printf("Error: %s\n", err.Error())
 		return

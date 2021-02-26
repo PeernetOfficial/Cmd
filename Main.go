@@ -6,19 +6,10 @@ Author:     Peter Kleissner
 
 package main
 
-func init() {
-	loadConfig()
-	initPeerID()
-	initMulticastIPv6()
-	initBroadcastIPv4()
-	initNetwork()
-	initSeedList()
-}
+import "github.com/PeernetOfficial/core"
 
 func main() {
-	go bootstrap()
-	go autoMulticastBroadcast()
-	go autoAnnounce()
-	
+	core.Connect()
+
 	userCommands()
 }

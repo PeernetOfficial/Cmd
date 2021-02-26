@@ -10,10 +10,13 @@ import (
 	"bufio"
 	"encoding/hex"
 	"fmt"
+	"net"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/PeernetOfficial/core"
 )
 
 func getUserOptionString(reader *bufio.Reader) (response string, valid bool) {
@@ -74,7 +77,7 @@ func showHelp() {
 func userCommands() {
 	reader := bufio.NewReader(os.Stdin)
 
-	fmt.Print("Peernet Cmd " + version + "\n------------------------------\n")
+	fmt.Print("Peernet Cmd " + core.Version + "\n------------------------------\n")
 	showHelp()
 
 	for {
@@ -92,7 +95,7 @@ func userCommands() {
 			fmt.Print(NetworkListOutput())
 
 		case "debug key create":
-			privateKey, publicKey, err := secp256k1NewPrivateKey()
+			privateKey, publicKey, err := core.Secp256k1NewPrivateKey()
 			if err != nil {
 				fmt.Printf("Error: %s\n", err.Error())
 				return
@@ -102,51 +105,97 @@ func userCommands() {
 			fmt.Printf("Public Key: %s\n", hex.EncodeToString(publicKey.SerializeCompressed()))
 
 		case "debug key self":
-			fmt.Printf("Private Key: %s\n", hex.EncodeToString(peerPrivateKey.Serialize()))
-			fmt.Printf("Public Key: %s\n", hex.EncodeToString(peerPublicKey.SerializeCompressed()))
+			privateKey, publicKey := core.ExportPrivateKey()
+			fmt.Printf("Private Key: %s\n", hex.EncodeToString(privateKey.Serialize()))
+			fmt.Printf("Public Key: %s\n", hex.EncodeToString(publicKey.SerializeCompressed()))
 
 		case "peer list":
-			for _, peer := range PeerlistGet() {
+			for _, peer := range core.PeerlistGet() {
 				fmt.Printf("* %s\n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()))
-				if len(peer.connections) > 0 {
+				if len(peer.Connections) > 0 {
 					fmt.Printf("  Connections:\n")
-					for _, connection := range peer.connections {
-						fmt.Printf("  %-30s  on adapter %s\n", connection.address.String(), connection.network.address.String())
+					for _, connection := range peer.Connections {
+						address, _, _ := connection.Network.GetListen()
+						fmt.Printf("  %-30s  on adapter %s\n", connection.Address.String(), address.String())
 					}
 				} else {
 					fmt.Printf("  Connections: [none]\n")
 				}
-				fmt.Printf("  Packets sent:      %d\n", peer.statsPacketSent)
-				fmt.Printf("  Packets received:  %d\n", peer.statsPacketReceived)
+				fmt.Printf("  Packets sent:      %d\n", peer.StatsPacketSent)
+				fmt.Printf("  Packets received:  %d\n", peer.StatsPacketReceived)
 			}
 
 		case "chat all", "chat":
 			if text, valid := getUserOptionString(reader); valid {
-				sendChatAll(text)
+				core.SendChatAll(text)
 			}
 
 		case "status":
-			fmt.Printf("----------------\nPublic Key: %s\n\n", hex.EncodeToString(peerPublicKey.SerializeCompressed()))
+			_, publicKey := core.ExportPrivateKey()
+			fmt.Printf("----------------\nPublic Key: %s\n\n", hex.EncodeToString(publicKey.SerializeCompressed()))
 
 			fmt.Printf("Listen Address                  Multicast IP out\n")
 
-			for _, network := range networks4 {
-				broadcastIPA := ""
-				if network.multicastIP != nil {
-					broadcastIPA = network.multicastIP.String()
+			for _, network := range core.GetNetworks(4) {
+				address, _, broadcastIPv4 := network.GetListen()
+				fmt.Printf("%-30s\n", address.String())
+
+				for _, broadcastIP := range broadcastIPv4 {
+					fmt.Printf("  %-30s\n", broadcastIP.String())
 				}
-				fmt.Printf("%-30s  %-30s\n", network.address.String(), broadcastIPA)
 			}
-			for _, network := range networks6 {
-				fmt.Printf("%-30s  %-30s\n", network.address.String(), network.multicastIP.String())
+			for _, network := range core.GetNetworks(6) {
+				address, multicastIP, _ := network.GetListen()
+				fmt.Printf("%-30s  %-30s\n", address.String(), multicastIP.String())
 			}
 
 			fmt.Printf("\nPeer ID                                                             IP                              Sent      Received\n")
-			for _, peer := range PeerlistGet() {
-				fmt.Printf("%-66s  %-30s  %-8d  %-8d\n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()), peer.connections[0].address.String(), peer.statsPacketSent, peer.statsPacketReceived)
+			for _, peer := range core.PeerlistGet() {
+				fmt.Printf("%-66s  %-30s  %-8d  %-8d\n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()), peer.Connections[0].Address.String(), peer.StatsPacketSent, peer.StatsPacketReceived)
 			}
 
 			fmt.Printf("\n")
 		}
 	}
+}
+
+// NetworkListOutput provides a user friendly output
+func NetworkListOutput() (text string) {
+
+	interfaceList, err := net.Interfaces()
+	if err != nil {
+		return "Error " + err.Error()
+	}
+
+	// iterate through all interfaces
+	for _, ifaceSingle := range interfaceList {
+		text += "Interface " + ifaceSingle.Name + ":\n"
+		//text += "  MAC:        " + ifaceSingle.HardwareAddr.String() + "\n"
+
+		addresses, err := ifaceSingle.Addrs()
+		if err != nil {
+			text += "  Error getting addresses: " + err.Error() + "\n\n"
+			continue
+		}
+
+		// iterate through all IPs of the interfaces
+		for _, address := range addresses {
+			text += "  IP:         " + address.(*net.IPNet).IP.String() + "\n"
+		}
+
+		// Subscribed Multicast IPs of adapters are not really newsworthy
+		//addresses2, err := ifaceSingle.MulticastAddrs()
+		//if err != nil {
+		//	text += "  Error getting multicast addresses: " + err.Error() + "\n\n"
+		//	continue
+		//}
+
+		//for _, address := range addresses2 {
+		//	text += "  Multicast:  " + address.(*net.IPAddr).IP.String() + "\n"
+		//}
+
+		text += "\n"
+	}
+
+	return text
 }
