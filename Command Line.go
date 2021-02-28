@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -25,7 +26,7 @@ func getUserOptionString(reader *bufio.Reader) (response string, valid bool) {
 		return "", false
 	}
 
-	responseA = strings.TrimSpace(responseA) // also removes the delimiter
+	responseA = strings.TrimSpace(responseA)
 
 	return responseA, true
 }
@@ -86,6 +87,7 @@ func userCommands() {
 			time.Sleep(time.Second)
 			continue
 		}
+		command = strings.ToLower(command)
 
 		switch command {
 		case "help", "?":
@@ -112,15 +114,7 @@ func userCommands() {
 		case "peer list":
 			for _, peer := range core.PeerlistGet() {
 				fmt.Printf("* %s\n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()))
-				if len(peer.Connections) > 0 {
-					fmt.Printf("  Connections:\n")
-					for _, connection := range peer.Connections {
-						address, _, _ := connection.Network.GetListen()
-						fmt.Printf("  %-30s  on adapter %s\n", connection.Address.String(), address.String())
-					}
-				} else {
-					fmt.Printf("  Connections: [none]\n")
-				}
+				fmt.Printf("%s", textPeerConnections(peer))
 				fmt.Printf("  Packets sent:      %d\n", peer.StatsPacketSent)
 				fmt.Printf("  Packets received:  %d\n", peer.StatsPacketReceived)
 			}
@@ -149,9 +143,13 @@ func userCommands() {
 				fmt.Printf("%-30s  %-30s\n", address.String(), multicastIP.String())
 			}
 
-			fmt.Printf("\nPeer ID                                                             IP                              Sent      Received\n")
+			fmt.Printf("\nPeer ID                                                             Sent      Received  IP                              \n")
 			for _, peer := range core.PeerlistGet() {
-				fmt.Printf("%-66s  %-30s  %-8d  %-8d\n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()), peer.Connections[0].Address.String(), peer.StatsPacketSent, peer.StatsPacketReceived)
+				addressA := "N/A"
+				if connectionsActive := peer.GetConnections(true); len(connectionsActive) > 0 {
+					addressA = connectionsActive[0].Address.String()
+				}
+				fmt.Printf("%-66s  %-8d  %-8d  %-30s  \n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()), peer.StatsPacketSent, peer.StatsPacketReceived, addressA)
 			}
 
 			fmt.Printf("\n")
@@ -198,4 +196,78 @@ func NetworkListOutput() (text string) {
 	}
 
 	return text
+}
+
+const dateFormat = "2006-01-02 15:04:05"
+
+func textPeerConnections(peer *core.PeerInfo) (text string) {
+	connectionsActive := peer.GetConnections(true)
+	connectionsInactive := peer.GetConnections(false)
+
+	mapConnectionsA := make(map[string][]*core.Connection)
+	mapConnectionsI := make(map[string][]*core.Connection)
+	var listAdapters []string
+
+	// for better human readability, sort all connections based on the network name
+	for _, c := range connectionsActive {
+		adapterName := c.Network.GetAdapterName()
+
+		list, ok := mapConnectionsA[adapterName]
+		if ok {
+			mapConnectionsA[adapterName] = append(list, c)
+		} else {
+			mapConnectionsA[adapterName] = []*core.Connection{c}
+			listAdapters = append(listAdapters, adapterName)
+		}
+	}
+
+	for _, c := range connectionsInactive {
+		adapterName := c.Network.GetAdapterName()
+
+		_, ok1 := mapConnectionsA[adapterName]
+		if !ok1 {
+			if _, ok2 := mapConnectionsI[adapterName]; !ok2 {
+				listAdapters = append(listAdapters, adapterName)
+			}
+		}
+
+		list, ok := mapConnectionsI[adapterName]
+		if ok {
+			mapConnectionsI[adapterName] = append(list, c)
+		} else {
+			mapConnectionsI[adapterName] = []*core.Connection{c}
+		}
+	}
+
+	sort.Strings(listAdapters)
+
+	text += "  Status    Local                                               ->  Remote                                              Last Packet In       Last Packet Out      \n"
+
+	for _, adapterName := range listAdapters {
+		text += "  -- adapter '" + adapterName + "' --\n"
+
+		list, _ := mapConnectionsA[adapterName]
+		for _, c := range list {
+			listenAddress, _, _ := c.Network.GetListen()
+			text += fmt.Sprintf("  active    %-50s  ->  %-50s  %-19s  %-19s\n", listenAddress.String(), addressToA(c.Address), c.LastPacketIn.Format(dateFormat), c.LastPacketOut.Format(dateFormat))
+		}
+
+		list, _ = mapConnectionsI[adapterName]
+		for _, c := range list {
+			listenAddress, _, _ := c.Network.GetListen()
+			text += fmt.Sprintf("  inactive  %-50s  ->  %-50s  %-19s  %-19s\n", listenAddress.String(), addressToA(c.Address), c.LastPacketIn.Format(dateFormat), c.LastPacketOut.Format(dateFormat))
+		}
+	}
+
+	text += "  --\n"
+
+	return text
+}
+
+// addressToA is UDPAddr.String without IPv6 zone
+func addressToA(a *net.UDPAddr) (result string) {
+	if a == nil || len(a.IP) == 0 {
+		return "<nil>"
+	}
+	return net.JoinHostPort(a.IP.String(), strconv.Itoa(a.Port))
 }
