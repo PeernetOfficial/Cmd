@@ -113,10 +113,7 @@ func userCommands() {
 
 		case "peer list":
 			for _, peer := range core.PeerlistGet() {
-				fmt.Printf("* %s\n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()))
-				fmt.Printf("%s", textPeerConnections(peer))
-				fmt.Printf("  Packets sent:      %d\n", peer.StatsPacketSent)
-				fmt.Printf("  Packets received:  %d\n", peer.StatsPacketReceived)
+				fmt.Printf("* %s\n%s  Packets sent:      %d\n  Packets received:  %d\n\n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()), textPeerConnections(peer), peer.StatsPacketSent, peer.StatsPacketReceived)
 			}
 
 		case "chat all", "chat":
@@ -249,13 +246,13 @@ func textPeerConnections(peer *core.PeerInfo) (text string) {
 		list, _ := mapConnectionsA[adapterName]
 		for _, c := range list {
 			listenAddress, _, _ := c.Network.GetListen()
-			text += fmt.Sprintf("  active    %-50s  ->  %-50s  %-19s  %-19s\n", listenAddress.String(), addressToA(c.Address), c.LastPacketIn.Format(dateFormat), c.LastPacketOut.Format(dateFormat))
+			text += fmt.Sprintf("  %-8s  %-50s  ->  %-50s  %-19s  %-19s\n", connectionStatusToA(c.Status), listenAddress.String(), addressToA(c.Address), c.LastPacketIn.Format(dateFormat), c.LastPacketOut.Format(dateFormat))
 		}
 
 		list, _ = mapConnectionsI[adapterName]
 		for _, c := range list {
 			listenAddress, _, _ := c.Network.GetListen()
-			text += fmt.Sprintf("  inactive  %-50s  ->  %-50s  %-19s  %-19s\n", listenAddress.String(), addressToA(c.Address), c.LastPacketIn.Format(dateFormat), c.LastPacketOut.Format(dateFormat))
+			text += fmt.Sprintf("  %-8s  %-50s  ->  %-50s  %-19s  %-19s\n", connectionStatusToA(c.Status), listenAddress.String(), addressToA(c.Address), c.LastPacketIn.Format(dateFormat), c.LastPacketOut.Format(dateFormat))
 		}
 	}
 
@@ -270,4 +267,18 @@ func addressToA(a *net.UDPAddr) (result string) {
 		return "<nil>"
 	}
 	return net.JoinHostPort(a.IP.String(), strconv.Itoa(a.Port))
+}
+
+// connectionStatusToA translates the connection status to a readable text
+func connectionStatusToA(status int) (result string) {
+	switch status {
+	case core.ConnectionActive:
+		return "active"
+	case core.ConnectionInactive:
+		return "inactive"
+	case core.ConnectionRemoved:
+		return "removed"
+	default:
+		return "unknown"
+	}
 }
