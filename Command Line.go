@@ -238,7 +238,7 @@ func textPeerConnections(peer *core.PeerInfo) (text string) {
 
 	sort.Strings(listAdapters)
 
-	text += "  Status    Local                                               ->  Remote                                              Last Packet In       Last Packet Out      \n"
+	text += "  Status     Local                                               ->  Remote                                              Last Packet In       Last Packet Out      \n"
 
 	for _, adapterName := range listAdapters {
 		text += "  -- adapter '" + adapterName + "' --\n"
@@ -246,13 +246,13 @@ func textPeerConnections(peer *core.PeerInfo) (text string) {
 		list, _ := mapConnectionsA[adapterName]
 		for _, c := range list {
 			listenAddress, _, _ := c.Network.GetListen()
-			text += fmt.Sprintf("  %-8s  %-50s  ->  %-50s  %-19s  %-19s\n", connectionStatusToA(c.Status), listenAddress.String(), addressToA(c.Address), c.LastPacketIn.Format(dateFormat), c.LastPacketOut.Format(dateFormat))
+			text += fmt.Sprintf("  %-9s  %-50s  ->  %-50s  %-19s  %-19s\n", connectionStatusToA(c.Status), listenAddress.String(), addressToA(c.Address), c.LastPacketIn.Format(dateFormat), c.LastPacketOut.Format(dateFormat))
 		}
 
 		list, _ = mapConnectionsI[adapterName]
 		for _, c := range list {
 			listenAddress, _, _ := c.Network.GetListen()
-			text += fmt.Sprintf("  %-8s  %-50s  ->  %-50s  %-19s  %-19s\n", connectionStatusToA(c.Status), listenAddress.String(), addressToA(c.Address), c.LastPacketIn.Format(dateFormat), c.LastPacketOut.Format(dateFormat))
+			text += fmt.Sprintf("  %-9s  %-50s  ->  %-50s  %-19s  %-19s\n", connectionStatusToA(c.Status), listenAddress.String(), addressToA(c.Address), c.LastPacketIn.Format(dateFormat), c.LastPacketOut.Format(dateFormat))
 		}
 	}
 
@@ -278,6 +278,8 @@ func connectionStatusToA(status int) (result string) {
 		return "inactive"
 	case core.ConnectionRemoved:
 		return "removed"
+	case core.ConnectionRedundant:
+		return "redundant"
 	default:
 		return "unknown"
 	}
