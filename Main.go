@@ -36,6 +36,7 @@ func init() {
 	}
 
 	core.Init()
+	core.UserAgent = "Peernet Cmd/" + core.Version
 }
 
 func main() {
