@@ -1,5 +1,5 @@
-github.com/PeernetOfficial/core v0.0.0-20210316213122-8d2a94d078c7 h1:tb2BNOsScVMLlWPW11u5Cg4Jk7w9nfZxB1un0bAx6Nc=
-github.com/PeernetOfficial/core v0.0.0-20210316213122-8d2a94d078c7/go.mod h1:SNy9riYEKopf8xBxiIJlfaOX7TPwsWGbmNBjJpjOZoA=
+github.com/PeernetOfficial/core v0.0.0-20210316220428-75c0d12850d9 h1:cKFvlwnI8WzTnAuwIyabqO26Mip0JuW2aWX+vpq3He8=
+github.com/PeernetOfficial/core v0.0.0-20210316220428-75c0d12850d9/go.mod h1:SNy9riYEKopf8xBxiIJlfaOX7TPwsWGbmNBjJpjOZoA=
 github.com/PeernetOfficial/core/dht v0.0.0-20210316211915-8b329f7258d1 h1:kbSPQTir7JrBAR7OL6TZIwWsRuqroafeXnFpKXOyEvk=
 github.com/PeernetOfficial/core/dht v0.0.0-20210316211915-8b329f7258d1/go.mod h1:sb2H21VIVTohCXVrDFo/Skl2tN8Yzba+MXSS6NgCYXw=
 github.com/PeernetOfficial/core/reuseport v0.0.0-20210316211915-8b329f7258d1 h1:m1dEg5E8ZwT3l/F6xiDrU2Q/ZJ9BeVFAZt/OUBxtr4M=
