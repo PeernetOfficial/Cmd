@@ -6,15 +6,6 @@ This client can be used as root peer to help speed up discovery of peers and dat
 
 ## Compile
 
-First get all the dependencies. Below list contains both dependencies from the core package and this tool.
-
-```
-go get -u github.com/PeernetOfficial/core
-go get -u github.com/btcsuite/btcd/btcec
-go get -u github.com/libp2p/go-reuseport
-go get -u lukechampine.com/blake3
-```
-
 To build:
 
 ```
