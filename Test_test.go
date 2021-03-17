@@ -2,17 +2,13 @@
 package main
 
 import (
-	"crypto/rand"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/PeernetOfficial/core"
-	"github.com/btcsuite/btcd/btcec"
-	"github.com/btcsuite/btcd/chaincfg/chainhash"
-	"lukechampine.com/blake3"
 )
 
+/*
 func TestSignCompact(t *testing.T) {
 	privateKey, publicKey, err := core.Secp256k1NewPrivateKey()
 	if err != nil {
@@ -26,19 +22,20 @@ func TestSignCompact(t *testing.T) {
 	time1 := time.Now()
 
 	compact1 = make([]byte, 0)
-	compact1, err = btcec.SignCompact(btcec.S256(), privateKey, chainhash.DoubleHashB(data), true)
+	compact1, err = btcec.SignCompact(btcec.S256(), privateKey, hashData(data), true)
 
 	timeT := time.Since(time1)
 	fmt.Printf("length %d time %s\n", len(compact1), timeT.String())
 
 	time2 := time.Now()
 
-	key2, _, err := btcec.RecoverCompact(btcec.S256(), compact1, chainhash.DoubleHashB(data))
+	key2, _, err := btcec.RecoverCompact(btcec.S256(), compact1, hashData(data))
 
 	timeT2 := time.Since(time2)
 	fmt.Printf("VALID PUBLIC KEY: %t\n", key2.IsEqual(publicKey))
 	fmt.Printf("time %s\n", timeT2.String())
 }
+*/
 
 func TestEncryption1(t *testing.T) {
 	privateKey, publicKey, err := core.Secp256k1NewPrivateKey()
@@ -63,6 +60,7 @@ func TestEncryption1(t *testing.T) {
 	fmt.Printf("%d\n", packet1d.Command)
 }
 
+/*
 func BenchmarkHash(b *testing.B) {
 	length := 20000
 
@@ -85,6 +83,7 @@ func BenchmarkHash(b *testing.B) {
 		}
 	})
 }
+*/
 
 func TestEncryption2(t *testing.T) {
 	privateKey, publicKey, err := core.Secp256k1NewPrivateKey()
