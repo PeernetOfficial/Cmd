@@ -63,6 +63,22 @@ func getUserOptionInt(reader *bufio.Reader) (response int, valid bool) {
 	return responseI, true
 }
 
+func getUserOptionHash(reader *bufio.Reader) (hash []byte, valid bool) {
+	responseA, err := reader.ReadString('\n')
+	if err != nil {
+		return nil, false
+	}
+
+	responseA = strings.TrimSpace(responseA)
+
+	hash, err = hex.DecodeString(responseA)
+	if err != nil || len(hash) != 256/8 {
+		return nil, false
+	}
+
+	return hash, true
+}
+
 func showHelp() {
 	fmt.Print("Please enter a command:\n")
 	fmt.Print("help               Show this help\n" +
@@ -72,6 +88,11 @@ func showHelp() {
 		"peer list          List current peers\n" +
 		"debug key create   Create Public-Private Key pair\n" +
 		"debug key self     List current Public-Private Key pair\n" +
+		"hash               Create blake3 hash of input\n" +
+		"warehouse get      Get data from local warehouse by hash\n" +
+		"warehouse store    Store data into local warehouse\n" +
+		"dht get            Get data via DHT by hash\n" +
+		"dht store          Store data into DHT\n" +
 		"\n")
 }
 
@@ -123,7 +144,8 @@ func userCommands() {
 
 		case "status":
 			_, publicKey := core.ExportPrivateKey()
-			fmt.Printf("----------------\nPublic Key: %s\n\n", hex.EncodeToString(publicKey.SerializeCompressed()))
+			nodeID := core.SelfNodeID()
+			fmt.Printf("----------------\nPublic Key: %s\nNode ID:    %s\n\n", hex.EncodeToString(publicKey.SerializeCompressed()), hex.EncodeToString(nodeID))
 
 			fmt.Printf("Listen Address                  Multicast IP out\n")
 
@@ -150,6 +172,57 @@ func userCommands() {
 			}
 
 			fmt.Printf("\n")
+
+		case "hash":
+			if text, valid := getUserOptionString(reader); valid {
+				hash := core.Data2Hash([]byte(text))
+				fmt.Printf("blake3 hash: %s\n", hex.EncodeToString(hash))
+			}
+
+		case "warehouse get":
+			if hash, valid := getUserOptionHash(reader); valid {
+				data, found := core.GetDataLocal(hash)
+				if !found {
+					fmt.Printf("Not found.\n")
+				} else {
+					fmt.Printf("Data hex:    %s\n", hex.EncodeToString(data))
+					fmt.Printf("Data string: %s\n", string(data))
+				}
+			} else {
+				fmt.Printf("Invalid hash. Hex-encoded blake3 hash as input is required.\n")
+			}
+
+		case "warehouse store":
+			if text, valid := getUserOptionString(reader); valid {
+				if err := core.StoreDataLocal([]byte(text)); err != nil {
+					fmt.Printf("Error storing data: %s\n", err.Error())
+					break
+				}
+				fmt.Printf("Stored via hash: %s\n", hex.EncodeToString(core.Data2Hash([]byte(text))))
+			}
+
+		case "dht store":
+			if text, valid := getUserOptionString(reader); valid {
+				if err := core.StoreDataDHT([]byte(text)); err != nil {
+					fmt.Printf("Error storing data: %s\n", err.Error())
+					break
+				}
+				fmt.Printf("Stored via hash: %s\n", hex.EncodeToString(core.Data2Hash([]byte(text))))
+			}
+
+		case "dht get":
+			if hash, valid := getUserOptionHash(reader); valid {
+				data, found := core.GetDataDHT(hash)
+				if !found {
+					fmt.Printf("Not found.\n")
+				} else {
+					fmt.Printf("Data hex:    %s\n", hex.EncodeToString(data))
+					fmt.Printf("Data string: %s\n", string(data))
+				}
+			} else {
+				fmt.Printf("Invalid hash. Hex-encoded blake3 hash as input is required.\n")
+			}
+
 		}
 	}
 }
