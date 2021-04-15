@@ -14,7 +14,7 @@ go build
 
 ## Use
 
-The settings filename is hard-coded to `Settings.yaml` and is created on the first run. Please see the core library for individual settings to change.
+The config filename is hard-coded to `Config.yaml` and is created on the first run. Please see the core library for individual settings to change.
 
 Simply start it and then use the listed commands:
 

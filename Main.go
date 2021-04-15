@@ -13,7 +13,7 @@ import (
 	"github.com/PeernetOfficial/core"
 )
 
-const configFile = "Settings.yaml"
+const configFile = "Config.yaml"
 
 func init() {
 	if status, err := core.LoadConfig(configFile); err != nil {
