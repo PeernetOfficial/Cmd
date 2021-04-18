@@ -125,12 +125,12 @@ func userCommands() {
 			}
 
 			fmt.Printf("Private Key: %s\n", hex.EncodeToString(privateKey.Serialize()))
-			fmt.Printf("Public Key: %s\n", hex.EncodeToString(publicKey.SerializeCompressed()))
+			fmt.Printf("Public Key:  %s\n", hex.EncodeToString(publicKey.SerializeCompressed()))
 
 		case "debug key self":
 			privateKey, publicKey := core.ExportPrivateKey()
 			fmt.Printf("Private Key: %s\n", hex.EncodeToString(privateKey.Serialize()))
-			fmt.Printf("Public Key: %s\n", hex.EncodeToString(publicKey.SerializeCompressed()))
+			fmt.Printf("Public Key:  %s\n", hex.EncodeToString(publicKey.SerializeCompressed()))
 
 		case "peer list":
 			for _, peer := range core.PeerlistGet() {
@@ -147,19 +147,24 @@ func userCommands() {
 			nodeID := core.SelfNodeID()
 			fmt.Printf("----------------\nPublic Key: %s\nNode ID:    %s\n\n", hex.EncodeToString(publicKey.SerializeCompressed()), hex.EncodeToString(nodeID))
 
-			fmt.Printf("Listen Address                  Multicast IP out\n")
+			fmt.Printf("Listen Address                       Multicast IP out\n")
 
 			for _, network := range core.GetNetworks(4) {
 				address, _, broadcastIPv4 := network.GetListen()
-				fmt.Printf("%-30s\n", address.String())
+				fmt.Printf("%-35s  ", address.String())
 
-				for _, broadcastIP := range broadcastIPv4 {
-					fmt.Printf("  %-30s\n", broadcastIP.String())
+				for n, broadcastIP := range broadcastIPv4 {
+					if n > 0 {
+						fmt.Printf(", ")
+					}
+					fmt.Printf("%s", broadcastIP.String())
 				}
+
+				fmt.Printf("\n")
 			}
 			for _, network := range core.GetNetworks(6) {
 				address, multicastIP, _ := network.GetListen()
-				fmt.Printf("%-30s  %-30s\n", address.String(), multicastIP.String())
+				fmt.Printf("%-35s  %s\n", address.String(), multicastIP.String())
 			}
 
 			fmt.Printf("\nPeer ID                                                             Sent      Received  IP                              \n")
