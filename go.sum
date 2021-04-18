@@ -1,5 +1,5 @@
-github.com/PeernetOfficial/core v0.0.0-20210415105906-ce2d3309af30 h1:wOV8hi1wEELinShrvu4PpzGHXyhoiz4GOiVB6NJys2I=
-github.com/PeernetOfficial/core v0.0.0-20210415105906-ce2d3309af30/go.mod h1:D5dvzEaJ1Bg8slj35NExK6w6Q/2yEPbh4QyczY5tb14=
+github.com/PeernetOfficial/core v0.0.0-20210418195030-00db57aed8e9 h1:fGdNCh5jtHDinuZcY9s96QxcrMtqFIlObKb06wRVM98=
+github.com/PeernetOfficial/core v0.0.0-20210418195030-00db57aed8e9/go.mod h1:D5dvzEaJ1Bg8slj35NExK6w6Q/2yEPbh4QyczY5tb14=
 github.com/PeernetOfficial/core/dht v0.0.0-20210410140655-6a9d16717779 h1:P21VQkgh7qrNuXG/tiXC56BNv2cjGI6z/CYpfrCAVCk=
 github.com/PeernetOfficial/core/dht v0.0.0-20210410140655-6a9d16717779/go.mod h1:sb2H21VIVTohCXVrDFo/Skl2tN8Yzba+MXSS6NgCYXw=
 github.com/aead/siphash v1.0.1/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBAUSII=
