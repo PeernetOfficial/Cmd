@@ -167,13 +167,17 @@ func userCommands() {
 				fmt.Printf("%-35s  %s\n", address.String(), multicastIP.String())
 			}
 
-			fmt.Printf("\nPeer ID                                                             Sent      Received  IP                              \n")
+			fmt.Printf("\nPeer ID                                                             Sent      Received  IP                                   RTT     \n")
 			for _, peer := range core.PeerlistGet() {
 				addressA := "N/A"
+				rttA := "N/A"
 				if connectionsActive := peer.GetConnections(true); len(connectionsActive) > 0 {
-					addressA = connectionsActive[0].Address.String()
+					addressA = addressToA(connectionsActive[0].Address)
 				}
-				fmt.Printf("%-66s  %-8d  %-8d  %-30s  \n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()), peer.StatsPacketSent, peer.StatsPacketReceived, addressA)
+				if rtt := peer.GetRTT(); rtt > 0 {
+					rttA = rtt.Round(time.Millisecond).String()
+				}
+				fmt.Printf("%-66s  %-8d  %-8d  %-35s  %-6s  \n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()), peer.StatsPacketSent, peer.StatsPacketReceived, addressA, rttA)
 			}
 
 			fmt.Printf("\n")
@@ -316,7 +320,7 @@ func textPeerConnections(peer *core.PeerInfo) (text string) {
 
 	sort.Strings(listAdapters)
 
-	text += "  Status     Local                                               ->  Remote                                              Last Packet In       Last Packet Out      \n"
+	text += "  Status     Local                                               ->  Remote                                              Last Packet In       Last Packet Out      RTT     \n"
 
 	for _, adapterName := range listAdapters {
 		text += "  -- adapter '" + adapterName + "' --\n"
@@ -324,13 +328,21 @@ func textPeerConnections(peer *core.PeerInfo) (text string) {
 		list, _ := mapConnectionsA[adapterName]
 		for _, c := range list {
 			listenAddress, _, _ := c.Network.GetListen()
-			text += fmt.Sprintf("  %-9s  %-50s  ->  %-50s  %-19s  %-19s\n", connectionStatusToA(c.Status), listenAddress.String(), addressToA(c.Address), c.LastPacketIn.Format(dateFormat), c.LastPacketOut.Format(dateFormat))
+			rttA := "N/A"
+			if c.RoundTripTime > 0 {
+				rttA = c.RoundTripTime.Round(time.Millisecond).String()
+			}
+			text += fmt.Sprintf("  %-9s  %-50s  ->  %-50s  %-19s  %-19s  %-6s  \n", connectionStatusToA(c.Status), listenAddress.String(), addressToA(c.Address), c.LastPacketIn.Format(dateFormat), c.LastPacketOut.Format(dateFormat), rttA)
 		}
 
 		list, _ = mapConnectionsI[adapterName]
 		for _, c := range list {
 			listenAddress, _, _ := c.Network.GetListen()
-			text += fmt.Sprintf("  %-9s  %-50s  ->  %-50s  %-19s  %-19s\n", connectionStatusToA(c.Status), listenAddress.String(), addressToA(c.Address), c.LastPacketIn.Format(dateFormat), c.LastPacketOut.Format(dateFormat))
+			rttA := "N/A"
+			if c.RoundTripTime > 0 {
+				rttA = c.RoundTripTime.Round(time.Millisecond).String()
+			}
+			text += fmt.Sprintf("  %-9s  %-50s  ->  %-50s  %-19s  %-19s  %-6s  \n", connectionStatusToA(c.Status), listenAddress.String(), addressToA(c.Address), c.LastPacketIn.Format(dateFormat), c.LastPacketOut.Format(dateFormat), rttA)
 		}
 	}
 
