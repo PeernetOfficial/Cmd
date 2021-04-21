@@ -221,10 +221,11 @@ func userCommands() {
 
 		case "dht get":
 			if hash, valid := getUserOptionHash(reader); valid {
-				data, found := core.GetDataDHT(hash)
+				data, sender, found := core.GetDataDHT(hash)
 				if !found {
 					fmt.Printf("Not found.\n")
 				} else {
+					fmt.Printf("\nSender:      %s\n", hex.EncodeToString(sender))
 					fmt.Printf("Data hex:    %s\n", hex.EncodeToString(data))
 					fmt.Printf("Data string: %s\n", string(data))
 				}
