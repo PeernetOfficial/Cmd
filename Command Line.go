@@ -134,7 +134,11 @@ func userCommands() {
 
 		case "peer list":
 			for _, peer := range core.PeerlistGet() {
-				fmt.Printf("* %s\n%s  Packets sent:      %d\n  Packets received:  %d\n\n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()), textPeerConnections(peer), peer.StatsPacketSent, peer.StatsPacketReceived)
+				info := ""
+				if peer.IsRootPeer {
+					info = " [root peer]"
+				}
+				fmt.Printf("* %s%s\n%s  Packets sent:      %d\n  Packets received:  %d\n\n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()), info, textPeerConnections(peer), peer.StatsPacketSent, peer.StatsPacketReceived)
 			}
 
 		case "chat all", "chat":
@@ -167,7 +171,7 @@ func userCommands() {
 				fmt.Printf("%-35s  %s\n", address.String(), multicastIP.String())
 			}
 
-			fmt.Printf("\nPeer ID                                                             Sent      Received  IP                                   RTT     \n")
+			fmt.Printf("\nPeer ID                                                             Sent      Received  IP                                   Flags   RTT     \n")
 			for _, peer := range core.PeerlistGet() {
 				addressA := "N/A"
 				rttA := "N/A"
@@ -177,7 +181,11 @@ func userCommands() {
 				if rtt := peer.GetRTT(); rtt > 0 {
 					rttA = rtt.Round(time.Millisecond).String()
 				}
-				fmt.Printf("%-66s  %-8d  %-8d  %-35s  %-6s  \n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()), peer.StatsPacketSent, peer.StatsPacketReceived, addressA, rttA)
+				flagsA := ""
+				if peer.IsRootPeer {
+					flagsA = "R"
+				}
+				fmt.Printf("%-66s  %-8d  %-8d  %-35s  %-6s  %-6s\n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()), peer.StatsPacketSent, peer.StatsPacketReceived, addressA, flagsA, rttA)
 			}
 
 			fmt.Printf("\n")
