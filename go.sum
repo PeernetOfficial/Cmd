@@ -1,7 +1,7 @@
-github.com/PeernetOfficial/core v0.0.0-20210421012703-ec809029d850 h1:I301mwofnEltMg6HdlTo1B+2Z4D9tQIVjYyMqimvVUI=
-github.com/PeernetOfficial/core v0.0.0-20210421012703-ec809029d850/go.mod h1:rpKMdzAHs0k2s9tF9nbhO9tTbkfo0BtbDpwRdbVglOY=
-github.com/PeernetOfficial/core/dht v0.0.0-20210421010630-e432696ad116 h1:1dqRhS20S6dRPdLL5dqp4TjTWm3vNvSm/EtRpPfxU6U=
-github.com/PeernetOfficial/core/dht v0.0.0-20210421010630-e432696ad116/go.mod h1:sb2H21VIVTohCXVrDFo/Skl2tN8Yzba+MXSS6NgCYXw=
+github.com/PeernetOfficial/core v0.0.0-20210425201259-1e7bb0c40c87 h1:lDil7jWBpA83LRtIASvEgBMbmMDByeFOG+2Z2uZPjmQ=
+github.com/PeernetOfficial/core v0.0.0-20210425201259-1e7bb0c40c87/go.mod h1:aixWDMb5EZsrqSwKPVrOyfIp3yZTvvQPEvlj3lncjiA=
+github.com/PeernetOfficial/core/dht v0.0.0-20210425014452-611dfa3b1ce9 h1:kcjoWZl9GZ9uSajS6t0tiKDpaatUQ64tl3OqXPc+YsY=
+github.com/PeernetOfficial/core/dht v0.0.0-20210425014452-611dfa3b1ce9/go.mod h1:sb2H21VIVTohCXVrDFo/Skl2tN8Yzba+MXSS6NgCYXw=
 github.com/aead/siphash v1.0.1/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBAUSII=
 github.com/btcsuite/btcd v0.20.1-beta/go.mod h1:wVuoA8VJLEcwgqHBwHmzLRazpKxTv13Px/pDuV7OomQ=
 github.com/btcsuite/btcd v0.21.0-beta.0.20210401013323-36a96f6a0025 h1:aoVqvZk4mLyF3WZbqEVPq+vXnwL2wekZg4P4mjYJNLs=
