@@ -138,7 +138,12 @@ func userCommands() {
 				if peer.IsRootPeer {
 					info = " [root peer]"
 				}
-				fmt.Printf("* %s%s\n%s  Packets sent:      %d\n  Packets received:  %d\n\n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()), info, textPeerConnections(peer), peer.StatsPacketSent, peer.StatsPacketReceived)
+				if peer.IsBehindNAT() {
+					info += " [NAT]"
+				}
+				userAgent := strings.ToValidUTF8(peer.UserAgent, "?")
+
+				fmt.Printf("* %s%s\n  User Agent: %s\n\n%s  Packets sent:      %d\n  Packets received:  %d\n\n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()), info, userAgent, textPeerConnections(peer), peer.StatsPacketSent, peer.StatsPacketReceived)
 			}
 
 		case "chat all", "chat":
@@ -195,6 +200,9 @@ func userCommands() {
 				flagsA := ""
 				if peer.IsRootPeer {
 					flagsA = "R"
+				}
+				if peer.IsBehindNAT() {
+					flagsA += "N"
 				}
 				fmt.Printf("%-66s  %-8d  %-8d  %-35s  %-6s  %-6s\n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()), peer.StatsPacketSent, peer.StatsPacketReceived, addressA, flagsA, rttA)
 			}
@@ -340,7 +348,7 @@ func textPeerConnections(peer *core.PeerInfo) (text string) {
 
 	sort.Strings(listAdapters)
 
-	text += "  Status     Local                                               ->  Remote                                              Last Packet In       Last Packet Out      RTT     \n"
+	text += "  Status     Local                                               ->  Remote                                              Last Packet In       Last Packet Out      RTT     Port I   Port E   \n"
 
 	for _, adapterName := range listAdapters {
 		text += "  -- adapter '" + adapterName + "' --\n"
@@ -352,7 +360,13 @@ func textPeerConnections(peer *core.PeerInfo) (text string) {
 			if c.RoundTripTime > 0 {
 				rttA = c.RoundTripTime.Round(time.Millisecond).String()
 			}
-			text += fmt.Sprintf("  %-9s  %-50s  ->  %-50s  %-19s  %-19s  %-6s  \n", connectionStatusToA(c.Status), listenAddress.String(), addressToA(c.Address), c.LastPacketIn.Format(dateFormat), c.LastPacketOut.Format(dateFormat), rttA)
+
+			portEA := ""
+			if c.PortExternal > 0 {
+				portEA = strconv.Itoa(int(c.PortExternal))
+			}
+
+			text += fmt.Sprintf("  %-9s  %-50s  ->  %-50s  %-19s  %-19s  %-6s  %-7d  %-7s  \n", connectionStatusToA(c.Status), listenAddress.String(), addressToA(c.Address), c.LastPacketIn.Format(dateFormat), c.LastPacketOut.Format(dateFormat), rttA, c.PortInternal, portEA)
 		}
 
 		list, _ = mapConnectionsI[adapterName]
@@ -362,7 +376,13 @@ func textPeerConnections(peer *core.PeerInfo) (text string) {
 			if c.RoundTripTime > 0 {
 				rttA = c.RoundTripTime.Round(time.Millisecond).String()
 			}
-			text += fmt.Sprintf("  %-9s  %-50s  ->  %-50s  %-19s  %-19s  %-6s  \n", connectionStatusToA(c.Status), listenAddress.String(), addressToA(c.Address), c.LastPacketIn.Format(dateFormat), c.LastPacketOut.Format(dateFormat), rttA)
+
+			portEA := ""
+			if c.PortExternal > 0 {
+				portEA = strconv.Itoa(int(c.PortExternal))
+			}
+
+			text += fmt.Sprintf("  %-9s  %-50s  ->  %-50s  %-19s  %-19s  %-6s  %-7d  %-7s  \n", connectionStatusToA(c.Status), listenAddress.String(), addressToA(c.Address), c.LastPacketIn.Format(dateFormat), c.LastPacketOut.Format(dateFormat), rttA, c.PortInternal, portEA)
 		}
 	}
 
