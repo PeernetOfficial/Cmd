@@ -348,7 +348,7 @@ func textPeerConnections(peer *core.PeerInfo) (text string) {
 
 	sort.Strings(listAdapters)
 
-	text += "  Status     Local                                               ->  Remote                                              Last Packet In       Last Packet Out      RTT     Port I   Port E   \n"
+	text += "  Status     Local                                               ->  Remote                                              Last Packet In       Last Packet Out      RTT     Ports I/E  \n"
 
 	for _, adapterName := range listAdapters {
 		text += "  -- adapter '" + adapterName + "' --\n"
@@ -361,12 +361,12 @@ func textPeerConnections(peer *core.PeerInfo) (text string) {
 				rttA = c.RoundTripTime.Round(time.Millisecond).String()
 			}
 
-			portEA := ""
+			portEA := strconv.Itoa(int(c.PortInternal))
 			if c.PortExternal > 0 {
-				portEA = strconv.Itoa(int(c.PortExternal))
+				portEA += " / " + strconv.Itoa(int(c.PortExternal))
 			}
 
-			text += fmt.Sprintf("  %-9s  %-50s  ->  %-50s  %-19s  %-19s  %-6s  %-7d  %-7s  \n", connectionStatusToA(c.Status), listenAddress.String(), addressToA(c.Address), c.LastPacketIn.Format(dateFormat), c.LastPacketOut.Format(dateFormat), rttA, c.PortInternal, portEA)
+			text += fmt.Sprintf("  %-9s  %-50s  ->  %-50s  %-19s  %-19s  %-6s  %-9s  \n", connectionStatusToA(c.Status), listenAddress.String(), addressToA(c.Address), c.LastPacketIn.Format(dateFormat), c.LastPacketOut.Format(dateFormat), rttA, portEA)
 		}
 
 		list, _ = mapConnectionsI[adapterName]
@@ -377,12 +377,12 @@ func textPeerConnections(peer *core.PeerInfo) (text string) {
 				rttA = c.RoundTripTime.Round(time.Millisecond).String()
 			}
 
-			portEA := ""
+			portEA := strconv.Itoa(int(c.PortInternal))
 			if c.PortExternal > 0 {
-				portEA = strconv.Itoa(int(c.PortExternal))
+				portEA += " / " + strconv.Itoa(int(c.PortExternal))
 			}
 
-			text += fmt.Sprintf("  %-9s  %-50s  ->  %-50s  %-19s  %-19s  %-6s  %-7d  %-7s  \n", connectionStatusToA(c.Status), listenAddress.String(), addressToA(c.Address), c.LastPacketIn.Format(dateFormat), c.LastPacketOut.Format(dateFormat), rttA, c.PortInternal, portEA)
+			text += fmt.Sprintf("  %-9s  %-50s  ->  %-50s  %-19s  %-19s  %-6s  %-9s  \n", connectionStatusToA(c.Status), listenAddress.String(), addressToA(c.Address), c.LastPacketIn.Format(dateFormat), c.LastPacketOut.Format(dateFormat), rttA, portEA)
 		}
 	}
 
