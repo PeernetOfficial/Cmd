@@ -156,10 +156,10 @@ func userCommands() {
 			nodeID := core.SelfNodeID()
 			fmt.Printf("----------------\nPublic Key: %s\nNode ID:    %s\n\n", hex.EncodeToString(publicKey.SerializeCompressed()), hex.EncodeToString(nodeID))
 
-			fmt.Printf("Listen Address                                  Multicast IP out                 External Port\n")
+			fmt.Printf("Listen Address                                  Multicast IP out                  External Address\n")
 
 			for _, network := range core.GetNetworks(4) {
-				address, _, broadcastIPv4, externalPort := network.GetListen()
+				address, _, broadcastIPv4, ipExternal, externalPort := network.GetListen()
 
 				broadcastIPsA := ""
 				for n, broadcastIP := range broadcastIPv4 {
@@ -169,15 +169,25 @@ func userCommands() {
 					broadcastIPsA += broadcastIP.String()
 				}
 
-				externalPortA := ""
-				if externalPort > 0 {
-					externalPortA = strconv.Itoa(int(externalPort))
+				externalAddress := ""
+
+				if ipExternal != nil && !ipExternal.IsUnspecified() || externalPort > 0 {
+					externalIPA := "[unknown]"
+					externalPortA := ""
+					if ipExternal != nil && !ipExternal.IsUnspecified() {
+						externalIPA = ipExternal.String()
+					}
+					if externalPort > 0 {
+						externalPortA = strconv.Itoa(int(externalPort))
+					}
+
+					externalAddress = net.JoinHostPort(externalIPA, externalPortA)
 				}
 
-				fmt.Printf("%-46s  %-31s  %s\n", address.String(), broadcastIPsA, externalPortA)
+				fmt.Printf("%-46s  %-32s  %s\n", address.String(), broadcastIPsA, externalAddress)
 			}
 			for _, network := range core.GetNetworks(6) {
-				address, multicastIP, _, externalPort := network.GetListen()
+				address, multicastIP, _, _, externalPort := network.GetListen()
 
 				externalPortA := ""
 				if externalPort > 0 {
@@ -355,7 +365,7 @@ func textPeerConnections(peer *core.PeerInfo) (text string) {
 
 		list, _ := mapConnectionsA[adapterName]
 		for _, c := range list {
-			listenAddress, _, _, _ := c.Network.GetListen()
+			listenAddress, _, _, _, _ := c.Network.GetListen()
 			rttA := "N/A"
 			if c.RoundTripTime > 0 {
 				rttA = c.RoundTripTime.Round(time.Millisecond).String()
@@ -371,7 +381,7 @@ func textPeerConnections(peer *core.PeerInfo) (text string) {
 
 		list, _ = mapConnectionsI[adapterName]
 		for _, c := range list {
-			listenAddress, _, _, _ := c.Network.GetListen()
+			listenAddress, _, _, _, _ := c.Network.GetListen()
 			rttA := "N/A"
 			if c.RoundTripTime > 0 {
 				rttA = c.RoundTripTime.Round(time.Millisecond).String()
