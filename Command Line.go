@@ -133,7 +133,7 @@ func userCommands() {
 			fmt.Printf("Public Key:  %s\n", hex.EncodeToString(publicKey.SerializeCompressed()))
 
 		case "peer list":
-			for _, peer := range core.PeerlistGet() {
+			for _, peer := range GetPeerlistSorted() {
 				info := ""
 				if peer.IsRootPeer {
 					info = " [root peer]"
@@ -155,6 +155,20 @@ func userCommands() {
 			_, publicKey := core.ExportPrivateKey()
 			nodeID := core.SelfNodeID()
 			fmt.Printf("----------------\nPublic Key: %s\nNode ID:    %s\n\n", hex.EncodeToString(publicKey.SerializeCompressed()), hex.EncodeToString(nodeID))
+
+			features := ""
+			featureSupport := core.FeatureSupport()
+			if featureSupport&(1<<core.FeatureIPv4Listen) > 0 {
+				features = "IPv4_LISTEN"
+			}
+			if featureSupport&(1<<core.FeatureIPv6Listen) > 0 {
+				if len(features) > 0 {
+					features += ", "
+				}
+				features += "IPv6_LISTEN"
+			}
+
+			fmt.Printf("User Agent: %s\nFeatures:   %s\n\n", core.UserAgent, features)
 
 			fmt.Printf("Listen Address                                  Multicast IP out                  External Address\n")
 
@@ -198,7 +212,7 @@ func userCommands() {
 			}
 
 			fmt.Printf("\nPeer ID                                                             Sent      Received  IP                                   Flags   RTT     \n")
-			for _, peer := range core.PeerlistGet() {
+			for _, peer := range GetPeerlistSorted() {
 				addressA := "N/A"
 				rttA := "N/A"
 				if connectionsActive := peer.GetConnections(true); len(connectionsActive) > 0 {
@@ -423,4 +437,18 @@ func connectionStatusToA(status int) (result string) {
 	default:
 		return "unknown"
 	}
+}
+
+func GetPeerlistSorted() (peers []*core.PeerInfo) {
+	peers = core.PeerlistGet()
+	sort.Slice(peers, func(i, j int) bool {
+		if peers[i].IsRootPeer && !peers[j].IsRootPeer {
+			return true
+		} else if peers[j].IsRootPeer && !peers[i].IsRootPeer {
+			return false
+		}
+		return (string(peers[i].NodeID) > string(peers[j].NodeID))
+	})
+
+	return peers
 }
