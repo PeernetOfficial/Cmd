@@ -159,13 +159,13 @@ func userCommands() {
 			features := ""
 			featureSupport := core.FeatureSupport()
 			if featureSupport&(1<<core.FeatureIPv4Listen) > 0 {
-				features = "IPv4_LISTEN"
+				features = "IPv4"
 			}
 			if featureSupport&(1<<core.FeatureIPv6Listen) > 0 {
 				if len(features) > 0 {
 					features += ", "
 				}
-				features += "IPv6_LISTEN"
+				features += "IPv6"
 			}
 
 			fmt.Printf("User Agent: %s\nFeatures:   %s\n\n", core.UserAgent, features)
