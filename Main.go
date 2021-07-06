@@ -14,9 +14,15 @@ import (
 )
 
 const configFile = "Config.yaml"
+const appName = "Peernet Cmd"
+
+var config struct {
+	// Log settings
+	ErrorOutput int `yaml:"ErrorOutput"` // 0 = Log file (default),  1 = Command line, 2 = Log file + command line, 3 = None
+}
 
 func init() {
-	if status, err := core.LoadConfig(configFile); err != nil {
+	if status, err := core.LoadConfigOut(configFile, &config); err != nil {
 		switch status {
 		case 0:
 			fmt.Printf("Unknown error accessing config file '%s': %s", configFile, err.Error())
@@ -35,8 +41,10 @@ func init() {
 		os.Exit(1)
 	}
 
+	core.UserAgent = appName + "/" + core.Version
+	core.Filters.LogError = logError
+
 	core.Init()
-	core.UserAgent = "Peernet Cmd/" + core.Version
 }
 
 func main() {
