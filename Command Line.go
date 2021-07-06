@@ -93,13 +93,14 @@ func showHelp() {
 		"warehouse store    Store data into local warehouse\n" +
 		"dht get            Get data via DHT by hash\n" +
 		"dht store          Store data into DHT\n" +
+		"log error          Set error log output\n" +
 		"\n")
 }
 
 func userCommands() {
 	reader := bufio.NewReader(os.Stdin)
 
-	fmt.Print("Peernet Cmd " + core.Version + "\n------------------------------\n")
+	fmt.Print(appName + " " + core.Version + "\n------------------------------\n")
 	showHelp()
 
 	for {
@@ -284,6 +285,14 @@ func userCommands() {
 				fmt.Printf("Invalid hash. Hex-encoded blake3 hash as input is required.\n")
 			}
 
+		case "log error":
+			fmt.Printf("Please choose the target output of error messages:\n0 = Log file (default)\n1 = Command line\n2 = Log file + command line\n3 = None\n")
+			if number, valid := getUserOptionInt(reader); !valid || number < 0 || number > 3 {
+				fmt.Printf("Invalid option.")
+			} else {
+				config.ErrorOutput = number
+			}
+
 		}
 	}
 }
@@ -451,4 +460,19 @@ func GetPeerlistSorted() (peers []*core.PeerInfo) {
 	})
 
 	return peers
+}
+
+// logError handles error messages from core
+func logError(function, format string, v ...interface{}) {
+	switch config.ErrorOutput {
+	case 0:
+		core.DefaultLogError(function, format, v)
+
+	case 1:
+		fmt.Printf("["+function+"] "+format, v...)
+
+	case 2:
+		core.DefaultLogError(function, format, v)
+		fmt.Printf("["+function+"] "+format, v...)
+	}
 }
