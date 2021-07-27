@@ -41,8 +41,11 @@ func init() {
 		os.Exit(1)
 	}
 
+	monitorKeys = make(map[string]struct{})
+
 	core.UserAgent = appName + "/" + core.Version
 	core.Filters.LogError = logError
+	core.Filters.DHTSearchStatus = filterSearchStatus
 
 	core.Init()
 }

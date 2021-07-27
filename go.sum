@@ -1,11 +1,10 @@
-github.com/PeernetOfficial/core v0.0.0-20210706113727-27fdafd23135 h1:sTSVUqT6zja5hwjpQIodNxxiDTwFiPRw4Fm1rDT3QVY=
-github.com/PeernetOfficial/core v0.0.0-20210706113727-27fdafd23135/go.mod h1:NglFBSMGFtMqR9ugIR0H244XYPvE1eC5H0X6sergW5U=
-github.com/PeernetOfficial/core/dht v0.0.0-20210506124834-e929d6ba2f22 h1:FHBHtQR3ShxuxkG8tgE4ER86UmbNdXam/I1irdiusqg=
-github.com/PeernetOfficial/core/dht v0.0.0-20210506124834-e929d6ba2f22/go.mod h1:sb2H21VIVTohCXVrDFo/Skl2tN8Yzba+MXSS6NgCYXw=
+github.com/PeernetOfficial/core v0.0.0-20210727233333-e5d09e70866a h1:8yM6YODL7rvrYvuVEQ74wQVW310uKEqNxgbPaiax2YQ=
+github.com/PeernetOfficial/core v0.0.0-20210727233333-e5d09e70866a/go.mod h1:9aIe6MS6tefJnfmyEZFqaNF4NIeq7wJutV7EU+uowps=
 github.com/aead/siphash v1.0.1/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBAUSII=
 github.com/btcsuite/btcd v0.20.1-beta/go.mod h1:wVuoA8VJLEcwgqHBwHmzLRazpKxTv13Px/pDuV7OomQ=
-github.com/btcsuite/btcd v0.21.0-beta.0.20210401013323-36a96f6a0025 h1:aoVqvZk4mLyF3WZbqEVPq+vXnwL2wekZg4P4mjYJNLs=
 github.com/btcsuite/btcd v0.21.0-beta.0.20210401013323-36a96f6a0025/go.mod h1:9n5ntfhhHQBIhUvlhDvD3Qg6fRUj4jkN0VB8L8svzOA=
+github.com/btcsuite/btcd v0.22.0-beta.0.20210625194946-86a17263b0ff h1:7aWbvIwkXchSCIWgobzJ+a6l87s6WHkJ78sZqxSpQCk=
+github.com/btcsuite/btcd v0.22.0-beta.0.20210625194946-86a17263b0ff/go.mod h1:9n5ntfhhHQBIhUvlhDvD3Qg6fRUj4jkN0VB8L8svzOA=
 github.com/btcsuite/btclog v0.0.0-20170628155309-84c8d2346e9f/go.mod h1:TdznJufoqS23FtqVCzL0ZqgP5MqXbb4fg/WgDys70nA=
 github.com/btcsuite/btcutil v0.0.0-20190425235716-9e5f4b9a998d/go.mod h1:+5NJ2+qvTyV9exUAL/rxXi3DcLg2Ts+ymUAY5y4NvMg=
 github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce/go.mod h1:0DVlHczLPewLcPGEIeUEzfOJhqGPQ0mJJRDBtD307+o=

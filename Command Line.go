@@ -8,6 +8,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"net"
@@ -18,6 +19,7 @@ import (
 	"time"
 
 	"github.com/PeernetOfficial/core"
+	"github.com/btcsuite/btcd/btcec"
 )
 
 func getUserOptionString(reader *bufio.Reader) (response string, valid bool) {
@@ -88,6 +90,7 @@ func showHelp() {
 		"peer list          List current peers\n" +
 		"debug key create   Create Public-Private Key pair\n" +
 		"debug key self     List current Public-Private Key pair\n" +
+		"debug connect      Attempts to connect to the target peer\n" +
 		"hash               Create blake3 hash of input\n" +
 		"warehouse get      Get data from local warehouse by hash\n" +
 		"warehouse store    Store data into local warehouse\n" +
@@ -144,7 +147,7 @@ func userCommands() {
 				}
 				userAgent := strings.ToValidUTF8(peer.UserAgent, "?")
 
-				fmt.Printf("* %s%s\n  User Agent: %s\n\n%s  Packets sent:      %d\n  Packets received:  %d\n\n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()), info, userAgent, textPeerConnections(peer), peer.StatsPacketSent, peer.StatsPacketReceived)
+				fmt.Printf("* Peer ID %s%s\n  Node ID %s\n  User Agent: %s\n\n%s  Packets sent:      %d\n  Packets received:  %d\n\n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()), info, hex.EncodeToString(peer.NodeID), userAgent, textPeerConnections(peer), peer.StatsPacketSent, peer.StatsPacketReceived)
 			}
 
 		case "chat all", "chat":
@@ -293,6 +296,48 @@ func userCommands() {
 				config.ErrorOutput = number
 			}
 
+		case "debug connect":
+			fmt.Printf("Please specify the target peer to connect to via DHT lookup, either by peer ID or node ID:\n")
+			text, valid := getUserOptionString(reader)
+			if !valid || (len(text) != 66 && len(text) != 64) {
+				fmt.Printf("Invalid peer ID or node ID. It must be hex-encoded and 66 (peer ID) or 64 characters (node ID) long.")
+				break
+			}
+
+			// node ID is required
+			var nodeID []byte
+			var err error
+
+			if len(text) == 66 {
+				// Assume peer ID was supplied.
+				publicKeyB, err := hex.DecodeString(text)
+				if err != nil || len(publicKeyB) != 33 {
+					fmt.Printf("Invalid peer ID encoding.")
+					break
+				}
+
+				publicKey, err := btcec.ParsePubKey(publicKeyB, btcec.S256())
+				if err != nil {
+					fmt.Printf("Invalid peer ID (public key decoding failed).")
+					continue
+				}
+
+				nodeID = core.PublicKey2NodeID(publicKey)
+			} else {
+				// Node ID was supplied.
+				if nodeID, err = hex.DecodeString(text); err != nil || len(nodeID) != 256/8 {
+					fmt.Printf("Invalid node ID encoding.")
+					break
+				}
+			}
+
+			// is self?
+			if bytes.Equal(nodeID, core.SelfNodeID()) {
+				fmt.Printf("Target node is self.")
+				break
+			}
+
+			debugCmdConnect(nodeID)
 		}
 	}
 }
@@ -466,13 +511,13 @@ func GetPeerlistSorted() (peers []*core.PeerInfo) {
 func logError(function, format string, v ...interface{}) {
 	switch config.ErrorOutput {
 	case 0:
-		core.DefaultLogError(function, format, v)
+		core.DefaultLogError(function, format, v...)
 
 	case 1:
 		fmt.Printf("["+function+"] "+format, v...)
 
 	case 2:
-		core.DefaultLogError(function, format, v)
+		core.DefaultLogError(function, format, v...)
 		fmt.Printf("["+function+"] "+format, v...)
 	}
 }
