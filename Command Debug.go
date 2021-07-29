@@ -34,11 +34,11 @@ func debugCmdConnect(nodeID []byte) {
 		// Discovery via DHT.
 		_, peer, _ = core.FindNode(nodeID, time.Second*10)
 		if peer == nil {
-			fmt.Printf("Not found via DHT :(\n")
+			fmt.Printf("* Not found via DHT :(\n")
 			return
 		}
 
-		fmt.Printf("Successfully discovered via DHT.\n")
+		fmt.Printf("* Successfully discovered via DHT.\n")
 	}
 
 	// virtual peer?
@@ -57,6 +57,7 @@ func debugCmdConnect(nodeID []byte) {
 
 var monitorKeys map[string]struct{}
 var monitorKeysMutex sync.RWMutex
+var enableMonitorAll = false // Enables output for all searches. Otherwise it only monitors searches stored in monitorKeys.
 
 func addKeyMonitor(key []byte) {
 	monitorKeysMutex.Lock()
@@ -72,11 +73,13 @@ func removeKeyMonitor(key []byte) {
 
 func filterSearchStatus(client *dht.SearchClient, function, format string, v ...interface{}) {
 	// check if the search client is actively being monitored
-	monitorKeysMutex.Lock()
-	_, ok := monitorKeys[string(client.Key)]
-	monitorKeysMutex.Unlock()
-	if !ok {
-		return
+	if !enableMonitorAll {
+		monitorKeysMutex.Lock()
+		_, ok := monitorKeys[string(client.Key)]
+		monitorKeysMutex.Unlock()
+		if !ok {
+			return
+		}
 	}
 
 	keyA := client.Key
@@ -85,9 +88,15 @@ func filterSearchStatus(client *dht.SearchClient, function, format string, v ...
 	}
 
 	intend := " ->"
-	if function == "sendInfoRequest" {
+
+	switch function {
+	case "search.sendInfoRequest":
 		intend = "    >"
+	case "dht.FindNode", "dht.Get", "dht.Store":
+		intend = " -"
+	case "search.startSearch":
+		intend = "  >"
 	}
 
-	fmt.Printf(intend+" ["+function+" "+hex.EncodeToString(keyA)+"] "+format, v...)
+	fmt.Printf(intend+" "+function+" ["+hex.EncodeToString(keyA)+"] "+format, v...)
 }
