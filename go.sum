@@ -1,5 +1,5 @@
-github.com/PeernetOfficial/core v0.0.0-20210729011714-fc1f0407f3af h1:oEWnUdo7Ymqc53CzpCZCI5aDmzGT69znMAeEl6G8L64=
-github.com/PeernetOfficial/core v0.0.0-20210729011714-fc1f0407f3af/go.mod h1:9aIe6MS6tefJnfmyEZFqaNF4NIeq7wJutV7EU+uowps=
+github.com/PeernetOfficial/core v0.0.0-20210729021053-3233bf5c1bf6 h1:J4Tb6sP7fnOrTsrJtXaSDqA1CpEYPmF6lg6QjeOUm0I=
+github.com/PeernetOfficial/core v0.0.0-20210729021053-3233bf5c1bf6/go.mod h1:9aIe6MS6tefJnfmyEZFqaNF4NIeq7wJutV7EU+uowps=
 github.com/aead/siphash v1.0.1/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBAUSII=
 github.com/btcsuite/btcd v0.20.1-beta/go.mod h1:wVuoA8VJLEcwgqHBwHmzLRazpKxTv13Px/pDuV7OomQ=
 github.com/btcsuite/btcd v0.21.0-beta.0.20210401013323-36a96f6a0025/go.mod h1:9n5ntfhhHQBIhUvlhDvD3Qg6fRUj4jkN0VB8L8svzOA=

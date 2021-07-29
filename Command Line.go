@@ -92,7 +92,8 @@ func showHelp() {
 		"debug key create              Create Public-Private Key pair\n" +
 		"debug key self                List current Public-Private Key pair\n" +
 		"debug connect                 Attempts to connect to the target peer\n" +
-		"debug watch searches          Watches all outgoing DHT searches\n" +
+		"debug watch searches          Watch all outgoing DHT searches\n" +
+		"debug watch incoming          Watch all incoming information requests\n" +
 		"hash                          Create blake3 hash of input\n" +
 		"warehouse get                 Get data from local warehouse by hash\n" +
 		"warehouse store               Store data into local warehouse\n" +
@@ -347,6 +348,14 @@ func userCommands() {
 				fmt.Printf("Invalid option.\n")
 			} else {
 				enableMonitorAll = number == 1
+			}
+
+		case "debug watch incoming":
+			fmt.Printf("Enable (1) or disable (0) watching of all incoming information requests? (current setting: %t)\n", enableWatchIncomingAll)
+			if number, valid := getUserOptionInt(reader); !valid || number < 0 || number > 1 {
+				fmt.Printf("Invalid option.\n")
+			} else {
+				enableWatchIncomingAll = number == 1
 			}
 
 		case "debug bucket refresh":
