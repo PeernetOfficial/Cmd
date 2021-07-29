@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/PeernetOfficial/core"
+	"github.com/PeernetOfficial/core/dht"
 	"github.com/btcsuite/btcd/btcec"
 )
 
@@ -83,20 +84,21 @@ func getUserOptionHash(reader *bufio.Reader) (hash []byte, valid bool) {
 
 func showHelp() {
 	fmt.Print("Please enter a command:\n")
-	fmt.Print("help               Show this help\n" +
-		"net list           Lists all network adapters and their IPs\n" +
-		"status             Get current status\n" +
-		"chat               Send text to all peers\n" +
-		"peer list          List current peers\n" +
-		"debug key create   Create Public-Private Key pair\n" +
-		"debug key self     List current Public-Private Key pair\n" +
-		"debug connect      Attempts to connect to the target peer\n" +
-		"hash               Create blake3 hash of input\n" +
-		"warehouse get      Get data from local warehouse by hash\n" +
-		"warehouse store    Store data into local warehouse\n" +
-		"dht get            Get data via DHT by hash\n" +
-		"dht store          Store data into DHT\n" +
-		"log error          Set error log output\n" +
+	fmt.Print("help                          Show this help\n" +
+		"net list                      Lists all network adapters and their IPs\n" +
+		"status                        Get current status\n" +
+		"chat                          Send text to all peers\n" +
+		"peer list                     List current peers\n" +
+		"debug key create              Create Public-Private Key pair\n" +
+		"debug key self                List current Public-Private Key pair\n" +
+		"debug connect                 Attempts to connect to the target peer\n" +
+		"debug watch searches          Watches all outgoing DHT searches\n" +
+		"hash                          Create blake3 hash of input\n" +
+		"warehouse get                 Get data from local warehouse by hash\n" +
+		"warehouse store               Store data into local warehouse\n" +
+		"dht get                       Get data via DHT by hash\n" +
+		"dht store                     Store data into DHT\n" +
+		"log error                     Set error log output\n" +
 		"\n")
 }
 
@@ -147,7 +149,7 @@ func userCommands() {
 				}
 				userAgent := strings.ToValidUTF8(peer.UserAgent, "?")
 
-				fmt.Printf("* Peer ID %s%s\n  Node ID %s\n  User Agent: %s\n\n%s  Packets sent:      %d\n  Packets received:  %d\n\n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()), info, hex.EncodeToString(peer.NodeID), userAgent, textPeerConnections(peer), peer.StatsPacketSent, peer.StatsPacketReceived)
+				fmt.Printf("* Peer ID %s%s\n  Node ID %s\n  User Agent: %s\n\n%s\n  Packets sent:      %d\n  Packets received:  %d\n\n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()), info, hex.EncodeToString(peer.NodeID), userAgent, textPeerConnections(peer), peer.StatsPacketSent, peer.StatsPacketReceived)
 			}
 
 		case "chat all", "chat":
@@ -267,7 +269,7 @@ func userCommands() {
 
 		case "dht store":
 			if text, valid := getUserOptionString(reader); valid {
-				if err := core.StoreDataDHT([]byte(text)); err != nil {
+				if err := core.StoreDataDHT([]byte(text), 5); err != nil {
 					fmt.Printf("Error storing data: %s\n", err.Error())
 					break
 				}
@@ -291,7 +293,7 @@ func userCommands() {
 		case "log error":
 			fmt.Printf("Please choose the target output of error messages:\n0 = Log file (default)\n1 = Command line\n2 = Log file + command line\n3 = None\n")
 			if number, valid := getUserOptionInt(reader); !valid || number < 0 || number > 3 {
-				fmt.Printf("Invalid option.")
+				fmt.Printf("Invalid option.\n")
 			} else {
 				config.ErrorOutput = number
 			}
@@ -300,7 +302,7 @@ func userCommands() {
 			fmt.Printf("Please specify the target peer to connect to via DHT lookup, either by peer ID or node ID:\n")
 			text, valid := getUserOptionString(reader)
 			if !valid || (len(text) != 66 && len(text) != 64) {
-				fmt.Printf("Invalid peer ID or node ID. It must be hex-encoded and 66 (peer ID) or 64 characters (node ID) long.")
+				fmt.Printf("Invalid peer ID or node ID. It must be hex-encoded and 66 (peer ID) or 64 characters (node ID) long.\n")
 				break
 			}
 
@@ -312,13 +314,13 @@ func userCommands() {
 				// Assume peer ID was supplied.
 				publicKeyB, err := hex.DecodeString(text)
 				if err != nil || len(publicKeyB) != 33 {
-					fmt.Printf("Invalid peer ID encoding.")
+					fmt.Printf("Invalid peer ID encoding.\n")
 					break
 				}
 
 				publicKey, err := btcec.ParsePubKey(publicKeyB, btcec.S256())
 				if err != nil {
-					fmt.Printf("Invalid peer ID (public key decoding failed).")
+					fmt.Printf("Invalid peer ID (public key decoding failed).\n")
 					continue
 				}
 
@@ -326,18 +328,35 @@ func userCommands() {
 			} else {
 				// Node ID was supplied.
 				if nodeID, err = hex.DecodeString(text); err != nil || len(nodeID) != 256/8 {
-					fmt.Printf("Invalid node ID encoding.")
+					fmt.Printf("Invalid node ID encoding.\n")
 					break
 				}
 			}
 
 			// is self?
 			if bytes.Equal(nodeID, core.SelfNodeID()) {
-				fmt.Printf("Target node is self.")
+				fmt.Printf("Target node is self.\n")
 				break
 			}
 
 			debugCmdConnect(nodeID)
+
+		case "debug watch searches":
+			fmt.Printf("Enable (1) or disable (0) watching of all outgoing DHT searches? (current setting: %t)\n", enableMonitorAll)
+			if number, valid := getUserOptionInt(reader); !valid || number < 0 || number > 1 {
+				fmt.Printf("Invalid option.\n")
+			} else {
+				enableMonitorAll = number == 1
+			}
+
+		case "debug bucket refresh":
+			fmt.Printf("Disable (1) or enable (0) bucket refresh. This can be useful to disable bucket refresh when debugging outgoing DHT searches. (current setting: %t)\n", dht.DisableBucketRefresh)
+			if number, valid := getUserOptionInt(reader); !valid || number < 0 || number > 1 {
+				fmt.Printf("Invalid option.\n")
+			} else {
+				dht.DisableBucketRefresh = number == 1
+			}
+
 		}
 	}
 }
@@ -463,8 +482,6 @@ func textPeerConnections(peer *core.PeerInfo) (text string) {
 			text += fmt.Sprintf("  %-9s  %-50s  ->  %-50s  %-19s  %-19s  %-6s  %-9s  \n", connectionStatusToA(c.Status), listenAddress.String(), addressToA(c.Address), c.LastPacketIn.Format(dateFormat), c.LastPacketOut.Format(dateFormat), rttA, portEA)
 		}
 	}
-
-	text += "  --\n"
 
 	return text
 }
