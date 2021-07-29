@@ -46,6 +46,7 @@ func init() {
 	core.UserAgent = appName + "/" + core.Version
 	core.Filters.LogError = logError
 	core.Filters.DHTSearchStatus = filterSearchStatus
+	core.Filters.IncomingRequest = filterIncomingRequest
 
 	core.Init()
 }

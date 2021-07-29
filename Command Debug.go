@@ -53,6 +53,8 @@ func debugCmdConnect(nodeID []byte) {
 	//fmt.Printf("* Sending ping:\n")
 }
 
+// ---- filter for outgoing DHT searches ----
+
 // debug output of monitored keys searched in the DHT
 
 var monitorKeys map[string]struct{}
@@ -99,4 +101,28 @@ func filterSearchStatus(client *dht.SearchClient, function, format string, v ...
 	}
 
 	fmt.Printf(intend+" "+function+" ["+hex.EncodeToString(keyA)+"] "+format, v...)
+}
+
+// ---- filter for incoming information requests ----
+
+var enableWatchIncomingAll = false
+
+func filterIncomingRequest(peer *core.PeerInfo, Action int, Key []byte, Info interface{}) {
+	if !enableWatchIncomingAll {
+		return
+	}
+
+	requestType := "UNKNOWN"
+	switch Action {
+	case core.ActionFindSelf:
+		requestType = "FIND_SELF"
+	case core.ActionFindPeer:
+		requestType = "FIND_PEER"
+	case core.ActionFindValue:
+		requestType = "FIND_VALUE"
+	case core.ActionInfoStore:
+		requestType = "INFO_STORE"
+	}
+
+	fmt.Printf("Incoming info request %s from %s for key %s\n", requestType, hex.EncodeToString(peer.NodeID), hex.EncodeToString(Key))
 }
