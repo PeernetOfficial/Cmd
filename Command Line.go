@@ -94,6 +94,7 @@ func showHelp() {
 		"debug connect                 Attempts to connect to the target peer\n" +
 		"debug watch searches          Watch all outgoing DHT searches\n" +
 		"debug watch incoming          Watch all incoming information requests\n" +
+		"debug watch                   Watch packets and info requests for hash\n" +
 		"hash                          Create blake3 hash of input\n" +
 		"warehouse get                 Get data from local warehouse by hash\n" +
 		"warehouse store               Store data into local warehouse\n" +
@@ -366,6 +367,22 @@ func userCommands() {
 				dht.DisableBucketRefresh = number == 1
 			}
 
+		case "debug watch":
+			fmt.Printf("Enter hash of data or node ID to watch. This monitors info requests and packets. Enter same hash again to remove from list.\n")
+			text, _ := getUserOptionString(reader)
+			var hash []byte
+			var err error
+			if hash, err = hex.DecodeString(text); err != nil || len(hash) != 256/8 {
+				fmt.Printf("Invalid hash. Hex-encoded 64 character hash expected.\n")
+				break
+			}
+
+			added := hashMonitorControl(hash, 2)
+			if added {
+				fmt.Printf("The hash was added to the monitoring list.\n")
+			} else {
+				fmt.Printf("The hash was removed from the monitoring list.\n")
+			}
 		}
 	}
 }
