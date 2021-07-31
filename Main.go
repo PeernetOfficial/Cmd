@@ -47,6 +47,12 @@ func init() {
 	core.Filters.LogError = logError
 	core.Filters.DHTSearchStatus = filterSearchStatus
 	core.Filters.IncomingRequest = filterIncomingRequest
+	core.Filters.MessageIn = filterMessageIn
+	core.Filters.MessageOutAnnouncement = filterMessageOutAnnouncement
+	core.Filters.MessageOutResponse = filterMessageOutResponse
+	core.Filters.MessageOutTraverse = filterMessageOutTraverse
+	core.Filters.MessageOutPing = filterMessageOutPing
+	core.Filters.MessageOutPong = filterMessageOutPong
 
 	core.Init()
 }
