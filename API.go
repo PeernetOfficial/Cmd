@@ -7,10 +7,10 @@ Author:     Peter Kleissner
 package main
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -142,25 +142,49 @@ func apiConsole(w http.ResponseWriter, r *http.Request) {
 		// May happen if request is simple HTTP request.
 		return
 	}
-
-	// start reader/writer to forward
-
 	defer c.Close()
+
+	bufferR := bytes.NewBuffer(make([]byte, 0, 4096))
+	bufferW := bytes.NewBuffer(make([]byte, 0, 4096))
+
+	terminateSignal := make(chan struct{})
+	defer close(terminateSignal)
+
+	// start userCommands which handles the actual commands
+	go userCommands(bufferR, bufferW, terminateSignal)
+
+	// go routine to receive output from userCommands and forward to websocket
+	go func() {
+		bufferW2 := make([]byte, 4096)
+		for {
+			select {
+			case <-terminateSignal:
+				return
+			default:
+			}
+
+			countRead, err := bufferW.Read(bufferW2)
+			if err != nil || countRead == 0 {
+				time.Sleep(250 * time.Millisecond)
+				continue
+			}
+
+			c.WriteMessage(websocket.TextMessage, bufferW2[:countRead])
+		}
+	}()
+
+	// read from websocket loop and forward to the userCommands routine
 	for {
 		_, message, err := c.ReadMessage()
-		if err != nil {
-			//fmt.Println("read:", err)
+		if err != nil { // when channel is closed, an error is returned here
 			break
 		}
-		//c.NextWriter(websocket.BinaryMessage)
 
-		//c.NextReader()
-		//userCommands()
-		fmt.Printf("recv: %s", message)
-		//err = c.WriteMessage(mt, message)
-		//if err != nil {
-		//	//fmt.Println("write:", err)
-		//	break
-		//}
+		// make sure the message has the \n delimiter which is used to detect a line
+		if !bytes.HasSuffix(message, []byte{'\n'}) {
+			message = append(message, '\n')
+		}
+
+		bufferR.Write(message)
 	}
 }

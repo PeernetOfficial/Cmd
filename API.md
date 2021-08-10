@@ -16,7 +16,11 @@ The API is still in development and endpoints are subject to change. The API sho
 
 ## Configuartion
 
-The configuration file (default `Config.yaml`) contains settings for the API.
+The configuration file (default `Config.yaml`) contains settings for the API. To listen on `http://127.0.0.1:112/` add this line:
+
+```yaml
+APIListen: ["127.0.0.1:112"]
+```
 
 ## Overview
 
@@ -25,9 +29,6 @@ These are the functions provided by the API:
 ```
 /status                     Provides current connectivity status to the network
 /peer/self                  Provides information about the self peer details
-/blockchain/self/header     Header of the self peers blockchain
-/blockchain/self/read       Read the self peers blockchain
-/blockchain/self/append     Add a record to the blockchain
 /share/list                 List all files and directories that are shared
 /share/file                 Share a file via the peers blockchain
 
@@ -37,9 +38,13 @@ These are the functions provided by the API:
 
 /status/ws                  Starts a websocket to receive updates on operations immediately (push instead of pull)
 /console                    Console provides a websocket to send/receive internal commands
+
+/blockchain/self/header     Header of the self peers blockchain
+/blockchain/self/read       Read the self peers blockchain
+/blockchain/self/append     Add a record to the blockchain
 ```
 
-The `/share` functions are providing high-level functionality to work with files; the `/blockchain` functions provide low-level functionality.
+The `/share` functions are providing high-level functionality to work with files. The `/blockchain` functions provide low-level functionality which is typically not needed.
 
 ## Status
 
@@ -84,7 +89,7 @@ Example response data: Todo
 
 ## Console
 
-The `/console` web-socket allows to execute internal commands. This should be only used for debugging purposes by the end-user. The same input and output as raw text as via the command-line is provided through this endpoint.
+The `/console` websocket allows to execute internal commands. This should be only used for debugging purposes by the end-user. The same input and output as raw text as via the command-line is provided through this endpoint.
 
 ```
 Request:    ws://127.0.0.1:112/console

@@ -23,65 +23,6 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 )
 
-func getUserOptionString(reader *bufio.Reader) (response string, valid bool) {
-	responseA, err := reader.ReadString('\n')
-	if err != nil {
-		return "", false
-	}
-
-	responseA = strings.TrimSpace(responseA)
-
-	return responseA, true
-}
-
-func getUserOptionBool(reader *bufio.Reader) (response bool, valid bool) {
-	responseA, err := reader.ReadString('\n')
-	if err != nil {
-		return false, false
-	}
-
-	responseA = strings.TrimSpace(responseA) // also removes the delimiter
-
-	responseI, err := strconv.Atoi(responseA)
-	if err != nil || (responseI != 0 && responseI != 1) {
-		return false, false
-	}
-
-	return responseI == 1, true
-}
-
-func getUserOptionInt(reader *bufio.Reader) (response int, valid bool) {
-	responseA, err := reader.ReadString('\n')
-	if err != nil {
-		return 0, false
-	}
-
-	responseA = strings.TrimSpace(responseA) // also removes the delimiter
-
-	responseI, err := strconv.Atoi(responseA)
-	if err != nil {
-		return 0, false
-	}
-
-	return responseI, true
-}
-
-func getUserOptionHash(reader *bufio.Reader) (hash []byte, valid bool) {
-	responseA, err := reader.ReadString('\n')
-	if err != nil {
-		return nil, false
-	}
-
-	responseA = strings.TrimSpace(responseA)
-
-	hash, err = hex.DecodeString(responseA)
-	if err != nil || len(hash) != 256/8 {
-		return nil, false
-	}
-
-	return hash, true
-}
-
 func showHelp(output io.Writer) {
 	fmt.Fprint(output, "Please enter a command:\n"+
 		"help                          Show this help\n"+
@@ -104,18 +45,18 @@ func showHelp(output io.Writer) {
 		"\n")
 }
 
-func userCommands(input io.Reader, output io.Writer) {
+func userCommands(input io.Reader, output io.Writer, terminateSignal chan struct{}) {
 	reader := bufio.NewReader(input)
 
 	fmt.Fprint(output, appName+" "+core.Version+"\n------------------------------\n")
 	showHelp(output)
 
 	for {
-		command, valid := getUserOptionString(reader)
-		if !valid {
-			time.Sleep(time.Second)
-			continue
+		command, _, terminate := getUserOptionString(reader, terminateSignal)
+		if terminate {
+			return
 		}
+
 		command = strings.ToLower(command)
 
 		switch command {
@@ -155,8 +96,10 @@ func userCommands(input io.Reader, output io.Writer) {
 			}
 
 		case "chat all", "chat":
-			if text, valid := getUserOptionString(reader); valid {
+			if text, valid, terminate := getUserOptionString(reader, terminateSignal); valid {
 				core.SendChatAll(text)
+			} else if terminate {
+				return
 			}
 
 		case "status":
@@ -242,13 +185,15 @@ func userCommands(input io.Reader, output io.Writer) {
 			fmt.Fprintf(output, "\n")
 
 		case "hash":
-			if text, valid := getUserOptionString(reader); valid {
+			if text, valid, terminate := getUserOptionString(reader, terminateSignal); valid {
 				hash := core.Data2Hash([]byte(text))
 				fmt.Fprintf(output, "blake3 hash: %s\n", hex.EncodeToString(hash))
+			} else if terminate {
+				return
 			}
 
 		case "warehouse get":
-			if hash, valid := getUserOptionHash(reader); valid {
+			if hash, valid, terminate := getUserOptionHash(reader, terminateSignal); valid {
 				data, found := core.GetDataLocal(hash)
 				if !found {
 					fmt.Fprintf(output, "Not found.\n")
@@ -256,30 +201,36 @@ func userCommands(input io.Reader, output io.Writer) {
 					fmt.Fprintf(output, "Data hex:    %s\n", hex.EncodeToString(data))
 					fmt.Fprintf(output, "Data string: %s\n", string(data))
 				}
+			} else if terminate {
+				return
 			} else {
 				fmt.Fprintf(output, "Invalid hash. Hex-encoded blake3 hash as input is required.\n")
 			}
 
 		case "warehouse store":
-			if text, valid := getUserOptionString(reader); valid {
+			if text, valid, terminate := getUserOptionString(reader, terminateSignal); valid {
 				if err := core.StoreDataLocal([]byte(text)); err != nil {
 					fmt.Fprintf(output, "Error storing data: %s\n", err.Error())
 					break
 				}
 				fmt.Fprintf(output, "Stored via hash: %s\n", hex.EncodeToString(core.Data2Hash([]byte(text))))
+			} else if terminate {
+				return
 			}
 
 		case "dht store":
-			if text, valid := getUserOptionString(reader); valid {
+			if text, valid, terminate := getUserOptionString(reader, terminateSignal); valid {
 				if err := core.StoreDataDHT([]byte(text), 5); err != nil {
 					fmt.Fprintf(output, "Error storing data: %s\n", err.Error())
 					break
 				}
 				fmt.Fprintf(output, "Stored via hash: %s\n", hex.EncodeToString(core.Data2Hash([]byte(text))))
+			} else if terminate {
+				return
 			}
 
 		case "dht get":
-			if hash, valid := getUserOptionHash(reader); valid {
+			if hash, valid, terminate := getUserOptionHash(reader, terminateSignal); valid {
 				data, sender, found := core.GetDataDHT(hash)
 				if !found {
 					fmt.Fprintf(output, "Not found.\n")
@@ -288,22 +239,28 @@ func userCommands(input io.Reader, output io.Writer) {
 					fmt.Fprintf(output, "Data hex:    %s\n", hex.EncodeToString(data))
 					fmt.Fprintf(output, "Data string: %s\n", string(data))
 				}
+			} else if terminate {
+				return
 			} else {
 				fmt.Fprintf(output, "Invalid hash. Hex-encoded blake3 hash as input is required.\n")
 			}
 
 		case "log error":
 			fmt.Fprintf(output, "Please choose the target output of error messages:\n0 = Log file (default)\n1 = Command line\n2 = Log file + command line\n3 = None\n")
-			if number, valid := getUserOptionInt(reader); !valid || number < 0 || number > 3 {
-				fmt.Fprintf(output, "Invalid option.\n")
-			} else {
+			if number, valid, terminate := getUserOptionInt(reader, terminateSignal); valid && number >= 0 && number <= 3 {
 				config.ErrorOutput = number
+			} else if terminate {
+				return
+			} else {
+				fmt.Fprintf(output, "Invalid option.\n")
 			}
 
 		case "debug connect":
 			fmt.Fprintf(output, "Please specify the target peer to connect to via DHT lookup, either by peer ID or node ID:\n")
-			text, valid := getUserOptionString(reader)
-			if !valid || (len(text) != 66 && len(text) != 64) {
+			text, valid, terminate := getUserOptionString(reader, terminateSignal)
+			if terminate {
+				return
+			} else if !valid || (len(text) != 66 && len(text) != 64) {
 				fmt.Fprintf(output, "Invalid peer ID or node ID. It must be hex-encoded and 66 (peer ID) or 64 characters (node ID) long.\n")
 				break
 			}
@@ -345,31 +302,40 @@ func userCommands(input io.Reader, output io.Writer) {
 
 		case "debug watch searches":
 			fmt.Fprintf(output, "Enable (1) or disable (0) watching of all outgoing DHT searches? (current setting: %t)\n", enableMonitorAll)
-			if number, valid := getUserOptionInt(reader); !valid || number < 0 || number > 1 {
-				fmt.Fprintf(output, "Invalid option.\n")
-			} else {
+			if number, valid, terminate := getUserOptionInt(reader, terminateSignal); valid && number >= 0 && number <= 1 {
 				enableMonitorAll = number == 1
+			} else if terminate {
+				return
+			} else {
+				fmt.Fprintf(output, "Invalid option.\n")
 			}
 
 		case "debug watch incoming":
 			fmt.Fprintf(output, "Enable (1) or disable (0) watching of all incoming information requests? (current setting: %t)\n", enableWatchIncomingAll)
-			if number, valid := getUserOptionInt(reader); !valid || number < 0 || number > 1 {
-				fmt.Fprintf(output, "Invalid option.\n")
-			} else {
+			if number, valid, terminate := getUserOptionInt(reader, terminateSignal); valid && number >= 0 && number <= 1 {
 				enableWatchIncomingAll = number == 1
+			} else if terminate {
+				return
+			} else {
+				fmt.Fprintf(output, "Invalid option.\n")
 			}
 
 		case "debug bucket refresh":
 			fmt.Fprintf(output, "Disable (1) or enable (0) bucket refresh. This can be useful to disable bucket refresh when debugging outgoing DHT searches. (current setting: %t)\n", dht.DisableBucketRefresh)
-			if number, valid := getUserOptionInt(reader); !valid || number < 0 || number > 1 {
-				fmt.Fprintf(output, "Invalid option.\n")
-			} else {
+			if number, valid, terminate := getUserOptionInt(reader, terminateSignal); valid && number >= 0 && number <= 1 {
 				dht.DisableBucketRefresh = number == 1
+			} else if terminate {
+				return
+			} else {
+				fmt.Fprintf(output, "Invalid option.\n")
 			}
 
 		case "debug watch":
 			fmt.Fprintf(output, "Enter hash of data or node ID to watch. This monitors info requests and packets. Enter same hash again to remove from list.\n")
-			text, _ := getUserOptionString(reader)
+			text, _, terminate := getUserOptionString(reader, terminateSignal)
+			if terminate {
+				return
+			}
 			var hash []byte
 			var err error
 			if hash, err = hex.DecodeString(text); err != nil || len(hash) != 256/8 {
@@ -563,4 +529,74 @@ func logError(function, format string, v ...interface{}) {
 		core.DefaultLogError(function, format, v...)
 		fmt.Printf("["+function+"] "+format, v...)
 	}
+}
+
+// ---- command-line helper functions ----
+
+// timeRetryUserInput defines how long the code waits for user input from reader before trying again
+// The termination signal takes effect once the reader is drained and returns io.EOF.
+const timeRetryUserInput = 500 * time.Millisecond
+
+// readUserText reads user text from the buffer. Blocking, unless termination signal is raised!
+func readUserText(reader *bufio.Reader, terminateSignal <-chan struct{}) (text string, valid, terminate bool) {
+	for {
+		if text, err := reader.ReadString('\n'); err == nil {
+			return strings.TrimSpace(text), true, false
+		}
+
+		// check for termination signal
+		select {
+		case <-terminateSignal:
+			return "", false, true
+		default:
+		}
+
+		time.Sleep(timeRetryUserInput)
+	}
+}
+
+func getUserOptionString(reader *bufio.Reader, terminateSignal <-chan struct{}) (response string, valid, terminate bool) {
+	return readUserText(reader, terminateSignal)
+}
+
+func getUserOptionBool(reader *bufio.Reader, terminateSignal <-chan struct{}) (response bool, valid, terminate bool) {
+	responseA, valid, terminate := readUserText(reader, terminateSignal)
+	if !valid || terminate {
+		return false, valid, terminate
+	}
+
+	responseI, err := strconv.Atoi(responseA)
+	if err != nil || (responseI != 0 && responseI != 1) {
+		return false, false, false
+	}
+
+	return responseI == 1, true, false
+}
+
+func getUserOptionInt(reader *bufio.Reader, terminateSignal <-chan struct{}) (response int, valid, terminate bool) {
+	responseA, valid, terminate := readUserText(reader, terminateSignal)
+	if !valid || terminate {
+		return 0, valid, terminate
+	}
+
+	responseI, err := strconv.Atoi(responseA)
+	if err != nil {
+		return 0, false, false
+	}
+
+	return responseI, true, false
+}
+
+func getUserOptionHash(reader *bufio.Reader, terminateSignal <-chan struct{}) (hash []byte, valid, terminate bool) {
+	responseA, valid, terminate := readUserText(reader, terminateSignal)
+	if !valid || terminate {
+		return nil, valid, terminate
+	}
+
+	hash, err := hex.DecodeString(responseA)
+	if err != nil || len(hash) != 256/8 {
+		return nil, false, false
+	}
+
+	return hash, true, false
 }
