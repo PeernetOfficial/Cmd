@@ -70,5 +70,5 @@ func main() {
 
 	core.Connect()
 
-	userCommands(os.Stdin, os.Stdout)
+	userCommands(os.Stdin, os.Stdout, nil)
 }
