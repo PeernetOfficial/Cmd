@@ -42,6 +42,7 @@ func startAPI() {
 	router.HandleFunc("/blockchain/self/append", apiBlockchainSelfAppend).Methods("POST")
 	router.HandleFunc("/blockchain/self/read", apiBlockchainSelfRead).Methods("GET")
 	router.HandleFunc("/blockchain/self/add/file", apiBlockchainSelfAddFile).Methods("POST")
+	router.HandleFunc("/blockchain/self/list/file", apiBlockchainSelfListFile).Methods("GET")
 
 	for _, listen := range config.APIListen {
 		go startWebServer(listen, config.APIUseSSL, config.APICertificateFile, config.APICertificateKey, router, "API", parseDuration(config.APITimeoutRead), parseDuration(config.APITimeoutWrite))
@@ -343,7 +344,8 @@ func apiBlockchainSelfRead(w http.ResponseWriter, r *http.Request) {
 
 // apiBlockAddFiles contains the file metadata to add to the blockchain
 type apiBlockAddFiles struct {
-	Files []apiBlockRecordFile `json:"files"`
+	Files  []apiBlockRecordFile `json:"files"`  // List of files
+	Status int                  `json:"status"` // Status of the operation, only used when this structure is returned from the API.
 }
 
 /*
@@ -367,4 +369,24 @@ func apiBlockchainSelfAddFile(w http.ResponseWriter, r *http.Request) {
 	newHeight, status := core.UserBlockchainAddFiles(files)
 
 	apiEncodeJSON(w, r, apiBlockchainBlockStatus{Status: status, Height: newHeight})
+}
+
+/*
+apiBlockchainSelfListFile lists all files stored on the blockchain.
+
+Request:    GET /blockchain/self/list/file
+Response:   200 with JSON structure apiBlockAddFiles
+*/
+func apiBlockchainSelfListFile(w http.ResponseWriter, r *http.Request) {
+	files, status := core.UserBlockchainListFiles()
+
+	var result apiBlockAddFiles
+
+	for _, file := range files {
+		result.Files = append(result.Files, apiBlockRecordFile{Hash: file.Hash, Type: file.Type, Format: file.Format, Size: file.Size, Directory: file.Directory, Name: file.Name})
+	}
+
+	result.Status = status
+
+	apiEncodeJSON(w, r, result)
 }
