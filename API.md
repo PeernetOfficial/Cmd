@@ -43,6 +43,7 @@ These are the functions provided by the API:
 /blockchain/self/append     Append a block to the blockchain
 /blockchain/self/read       Read a block of the blockchain
 /blockchain/self/add/file   Add file to the blockchain
+/blockchain/self/list/file  List all files stored on the blockchain
 ```
 
 The `/share` functions are providing high-level functionality to work with files. The `/blockchain` functions provide low-level functionality which is typically not needed.
@@ -199,5 +200,46 @@ type apiBlockAddFiles struct {
 type apiBlockchainBlockStatus struct {
 	Status int    `json:"status"` // Status: 0 = Success, 1 = Error invalid data
 	Height uint64 `json:"height"` // New height of the blockchain (number of blocks).
+}
+```
+
+Example POST request data to `http://127.0.0.1:112/blockchain/self/add/file`:
+
+```json
+{
+    "files": [{
+        "hash": "aFad3zRACbk44dsOw5sVGxYmz+Rqh8ORDcGJNqIz+Ss=",
+        "type": 1,
+        "format": 10,
+        "size": 4,
+        "name": "Test.txt",
+        "directory": "sample directory/sub folder"
+    }]
+}
+```
+
+## Blockchain List Files
+
+This lists all files stored on the blockchain.
+
+```
+Request:    GET /blockchain/self/list/file
+
+Response:   200 with JSON structure apiBlockAddFiles
+```
+
+Example output:
+
+```json
+{
+    "files": [{
+        "hash": "aFad3zRACbk44dsOw5sVGxYmz+Rqh8ORDcGJNqIz+Ss=",
+        "type": 1,
+        "format": 10,
+        "size": 4,
+        "directory": "sample directory/sub folder",
+        "name": "Test.txt"
+    }],
+    "status": 0
 }
 ```
