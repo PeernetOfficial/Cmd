@@ -2,3 +2,5 @@
 log.txt
 *debug_bin
 *.yaml
+.vscode
+self.*

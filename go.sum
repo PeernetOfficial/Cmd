@@ -1,6 +1,8 @@
-github.com/PeernetOfficial/core v0.0.0-20210731152914-2937154c8d7b h1:y/Afz6M1vlLpn5nmZmHyK0Tze7hOl9N7p43HfTb578I=
-github.com/PeernetOfficial/core v0.0.0-20210731152914-2937154c8d7b/go.mod h1:9aIe6MS6tefJnfmyEZFqaNF4NIeq7wJutV7EU+uowps=
+github.com/PeernetOfficial/core v0.0.0-20210819021308-a2420b8468b1 h1:FTI8IWp3NN7ypWz+nTcERpFlBlE6PVzt1bhSTfzPd2Q=
+github.com/PeernetOfficial/core v0.0.0-20210819021308-a2420b8468b1/go.mod h1:upfaI2iJJ7lyH+UtOLU7t6oVcLO7PrDF7SsSUWJJ/OY=
 github.com/aead/siphash v1.0.1/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBAUSII=
+github.com/akrylysov/pogreb v0.10.1 h1:FqlR8VR7uCbJdfUob916tPM+idpKgeESDXOA1K0DK4w=
+github.com/akrylysov/pogreb v0.10.1/go.mod h1:pNs6QmpQ1UlTJKDezuRWmaqkgUE2TuU0YTWyqJZ7+lI=
 github.com/btcsuite/btcd v0.20.1-beta/go.mod h1:wVuoA8VJLEcwgqHBwHmzLRazpKxTv13Px/pDuV7OomQ=
 github.com/btcsuite/btcd v0.21.0-beta.0.20210401013323-36a96f6a0025/go.mod h1:9n5ntfhhHQBIhUvlhDvD3Qg6fRUj4jkN0VB8L8svzOA=
 github.com/btcsuite/btcd v0.22.0-beta.0.20210625194946-86a17263b0ff h1:7aWbvIwkXchSCIWgobzJ+a6l87s6WHkJ78sZqxSpQCk=
