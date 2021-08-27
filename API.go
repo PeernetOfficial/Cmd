@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/PeernetOfficial/core"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
@@ -280,28 +281,51 @@ type apiBlockchainBlock struct {
 	LastBlockHash     []byte              `json:"lastblockhash"`     // Hash of the last block. Blake3.
 	BlockchainVersion uint64              `json:"blockchainversion"` // Blockchain version
 	Number            uint64              `json:"blocknumber"`       // Block number
-	RecordsRaw        []apiBlockRecordRaw `json:"recordsraw"`        // Block records raw. Successfully decoded records are parsed into the below fields.
-	Decoded           struct {
-		User  apiBlockRecordUser   `json:"user"`  // User details
-		Files []apiBlockRecordFile `json:"files"` // Files
-	} `json:"decoded"`
+	RecordsRaw        []apiBlockRecordRaw `json:"recordsraw"`        // Records raw. Successfully decoded records are parsed into the below fields.
+	RecordsDecoded    []interface{}       `json:"recordsdecoded"`    // Records decoded. The encoding for each record depends on its type.
 }
 
-// apiBlockRecordUser specifies user information
-type apiBlockRecordUser struct {
-	NameValid     bool   `json:"namevalid"`     // Whether the name is supplied in this structure.
-	Name          string `json:"name"`          // Arbitrary name of the user.
-	NameSanitized string `json:"namesanitized"` // Sanitized version of the name.
+// apiBlockRecordProfile contains end-user information. Any data is treated as untrusted and unverified by default.
+type apiBlockRecordProfile struct {
+	Fields []apiBlockRecordProfileField `json:"fields"` // All fields
+	Blobs  []apiBlockRecordProfileBlob  `json:"blobs"`  // Blobs
+}
+
+// apiBlockRecordProfileField contains a single information about the end user. The data is always UTF8 text encoded.
+// Note that all profile data is arbitrary and shall be considered untrusted and unverified.
+// To establish trust, the user must load Certificates into the blockchain that validate certain data.
+type apiBlockRecordProfileField struct {
+	Type uint16 `json:"type"` // See ProfileFieldX constants.
+	Text string `json:"text"` // The data
+}
+
+// apiBlockRecordProfileBlob is similar to apiBlockRecordProfileField but contains binary objects instead of text.
+// It can be used for example to store a profile picture on the blockchain.
+type apiBlockRecordProfileBlob struct {
+	Type uint16 `json:"type"` // See ProfileBlobX constants.
+	Data []byte `json:"data"` // The data
+}
+
+// apiFileTag describes a generic tag.
+// Note that not all tags may be able to be decoded into this generic structure!
+// This structure exists for known (defined) tags that do not have a fixed field in the apiBlockRecordFile structure.
+// The blockchain supports not yet (future/custom) defined tags, which are accessible via the core.UserBlockchainX functions.
+type apiFileTag struct {
+	Key  string `json:"key"`  // Name of the tag
+	Text string `json:"text"` // Text value of the tag
 }
 
 // apiBlockRecordFile is the metadata of a file published on the blockchain
 type apiBlockRecordFile struct {
-	Hash      []byte `json:"hash"`      // Blake3 hash of the file data
-	Type      uint8  `json:"type"`      // Type (low-level)
-	Format    uint16 `json:"format"`    // Format (high-level)
-	Size      uint64 `json:"size"`      // Size of the file
-	Directory string `json:"directory"` // Directory
-	Name      string `json:"name"`      // File name
+	ID          uuid.UUID    `json:"id"`          // Unique ID.
+	Hash        []byte       `json:"hash"`        // Blake3 hash of the file data
+	Type        uint8        `json:"type"`        // Type (low-level)
+	Format      uint16       `json:"format"`      // Format (high-level)
+	Size        uint64       `json:"size"`        // Size of the file
+	Folder      string       `json:"folder"`      // Folder, optional
+	Name        string       `json:"name"`        // Name of the file
+	Description string       `json:"description"` // Description. This is expected to be multiline and contain hashtags!
+	Tags        []apiFileTag `json:"tags"`        // Tags
 }
 
 /*
@@ -318,7 +342,7 @@ func apiBlockchainSelfRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	block, status := core.UserBlockchainRead(uint64(blockN))
+	block, status, _ := core.UserBlockchainRead(uint64(blockN))
 	result := apiBlockchainBlock{Status: status}
 
 	if status == 0 {
@@ -328,14 +352,15 @@ func apiBlockchainSelfRead(w http.ResponseWriter, r *http.Request) {
 
 		result.PeerID = hex.EncodeToString(block.OwnerPublicKey.SerializeCompressed())
 
-		if block.User.Valid {
-			result.Decoded.User.NameValid = true
-			result.Decoded.User.Name = block.User.Name
-			result.Decoded.User.NameSanitized = block.User.NameS
-		}
+		for _, record := range block.RecordsDecoded {
+			switch v := record.(type) {
+			case core.BlockRecordFile:
+				result.RecordsDecoded = append(result.RecordsDecoded, blockRecordFileToAPI(v))
 
-		for _, file := range block.Files {
-			result.Decoded.Files = append(result.Decoded.Files, apiBlockRecordFile{Hash: file.Hash, Type: file.Type, Format: file.Format, Size: file.Size, Directory: file.Directory, Name: file.Name})
+			case core.BlockRecordProfile:
+				result.RecordsDecoded = append(result.RecordsDecoded, blockRecordProfileToAPI(v))
+
+			}
 		}
 	}
 
@@ -360,13 +385,17 @@ func apiBlockchainSelfAddFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var files []core.BlockRecordFile
+	var filesAdd []core.BlockRecordFile
 
 	for _, file := range input.Files {
-		files = append(files, core.BlockRecordFile{Hash: file.Hash, Type: file.Type, Format: file.Format, Size: file.Size, Directory: file.Directory, Name: file.Name})
+		if file.ID == uuid.Nil { // if the ID is not provided by the caller, set it
+			file.ID = uuid.New()
+		}
+
+		filesAdd = append(filesAdd, blockRecordFileFromAPI(file))
 	}
 
-	newHeight, status := core.UserBlockchainAddFiles(files)
+	newHeight, status := core.UserBlockchainAddFiles(filesAdd)
 
 	apiEncodeJSON(w, r, apiBlockchainBlockStatus{Status: status, Height: newHeight})
 }
@@ -383,10 +412,83 @@ func apiBlockchainSelfListFile(w http.ResponseWriter, r *http.Request) {
 	var result apiBlockAddFiles
 
 	for _, file := range files {
-		result.Files = append(result.Files, apiBlockRecordFile{Hash: file.Hash, Type: file.Type, Format: file.Format, Size: file.Size, Directory: file.Directory, Name: file.Name})
+		result.Files = append(result.Files, blockRecordFileToAPI(file))
 	}
 
 	result.Status = status
 
 	apiEncodeJSON(w, r, result)
+}
+
+// --- conversion from core to API data ---
+
+func blockRecordFileToAPI(input core.BlockRecordFile) (output apiBlockRecordFile) {
+	output = apiBlockRecordFile{ID: input.ID, Hash: input.Hash, Type: input.Type, Format: input.Format, Size: input.Size}
+	output.Tags = []apiFileTag{}
+
+	for _, tagDecoded := range input.TagsDecoded {
+		switch v := tagDecoded.(type) {
+		case core.FileTagName:
+			output.Name = v.Name
+
+		case core.FileTagFolder:
+			output.Folder = v.Name
+
+		case core.FileTagDescription:
+			output.Description = v.Description
+
+		case core.FileTagCreated:
+			output.Tags = append(output.Tags, apiFileTag{Key: "created", Text: v.Date.Format(dateFormat)})
+
+		}
+	}
+
+	return output
+}
+
+func blockRecordFileFromAPI(input apiBlockRecordFile) (output core.BlockRecordFile) {
+	output = core.BlockRecordFile{ID: input.ID, Hash: input.Hash, Type: input.Type, Format: input.Format, Size: input.Size}
+
+	if input.Name != "" {
+		output.TagsDecoded = append(output.TagsDecoded, core.FileTagName{Name: input.Name})
+	}
+	if input.Folder != "" {
+		output.TagsDecoded = append(output.TagsDecoded, core.FileTagFolder{Name: input.Folder})
+	}
+	if input.Description != "" {
+		output.TagsDecoded = append(output.TagsDecoded, core.FileTagDescription{Description: input.Description})
+	}
+
+	for _, tag := range input.Tags {
+		switch tag.Key {
+		case "created":
+			if dateF, err := time.Parse(dateFormat, tag.Text); err == nil {
+				output.TagsDecoded = append(output.TagsDecoded, core.FileTagCreated{Date: dateF})
+			}
+		}
+	}
+
+	return output
+}
+
+func blockRecordProfileToAPI(input core.BlockRecordProfile) (output apiBlockRecordProfile) {
+	for n := range input.Fields {
+		output.Fields = append(output.Fields, apiBlockRecordProfileField{Type: input.Fields[n].Type, Text: input.Fields[n].Text})
+	}
+	for n := range input.Blobs {
+		output.Blobs = append(output.Blobs, apiBlockRecordProfileBlob{Type: input.Blobs[n].Type, Data: input.Blobs[n].Data})
+	}
+
+	return output
+}
+
+func blockRecordProfileFromAPI(input apiBlockRecordProfile) (output core.BlockRecordProfile) {
+	for n := range input.Fields {
+		output.Fields = append(output.Fields, core.BlockRecordProfileField{Type: input.Fields[n].Type, Text: input.Fields[n].Text})
+	}
+	for n := range input.Blobs {
+		output.Blobs = append(output.Blobs, core.BlockRecordProfileBlob{Type: input.Blobs[n].Type, Data: input.Blobs[n].Data})
+	}
+
+	return output
 }
