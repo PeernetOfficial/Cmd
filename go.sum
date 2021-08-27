@@ -1,5 +1,5 @@
-github.com/PeernetOfficial/core v0.0.0-20210819144937-6c399a7be93c h1:2xOWG1AHIp41IQ1KyIjPUzszkZnKk58izxh27d+1GHk=
-github.com/PeernetOfficial/core v0.0.0-20210819144937-6c399a7be93c/go.mod h1:upfaI2iJJ7lyH+UtOLU7t6oVcLO7PrDF7SsSUWJJ/OY=
+github.com/PeernetOfficial/core v0.0.0-20210827153836-7c88763f28d5 h1:mJVUgxgBJI/nQ5L2lEsdZBje1PgJ5FAeaLaqboxmdtw=
+github.com/PeernetOfficial/core v0.0.0-20210827153836-7c88763f28d5/go.mod h1:GCG3qjbCPEY+/PGIO76Dj/Dp6JvpMYy0B6T+CbmSk1A=
 github.com/aead/siphash v1.0.1/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBAUSII=
 github.com/akrylysov/pogreb v0.10.1 h1:FqlR8VR7uCbJdfUob916tPM+idpKgeESDXOA1K0DK4w=
 github.com/akrylysov/pogreb v0.10.1/go.mod h1:pNs6QmpQ1UlTJKDezuRWmaqkgUE2TuU0YTWyqJZ7+lI=
@@ -24,6 +24,8 @@ github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSs
 github.com/decred/dcrd/lru v1.0.0/go.mod h1:mxKOwFd7lFjN2GZYsiz/ecgqR6kkYAl+0pz0tEMk218=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/golang/protobuf v1.2.0/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
+github.com/google/uuid v1.3.0 h1:t6JiXgmwXMjEs8VusXIJk2BXHsn+wx8BZdTaoZ5fu7I=
+github.com/google/uuid v1.3.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/gorilla/mux v1.8.1-0.20200912192056-d07530f46e1e h1:8+CIGbDW29nl9niCoMrpF8+ACFz3rLRpIjuqnx4rNKg=
 github.com/gorilla/mux v1.8.1-0.20200912192056-d07530f46e1e/go.mod h1:DVbg23sWSpFRCP0SfiEN6jmj59UnW/n46BH5rLB71So=
 github.com/gorilla/websocket v1.4.3-0.20210424162022-e8629af678b7 h1:L89uC9ATI61/V2eNgZYtQHyjjyjEplemB+aky4HdyzQ=

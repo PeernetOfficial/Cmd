@@ -159,26 +159,40 @@ type apiBlockchainBlock struct {
 	LastBlockHash     []byte              `json:"lastblockhash"`     // Hash of the last block. Blake3.
 	BlockchainVersion uint64              `json:"blockchainversion"` // Blockchain version
 	Number            uint64              `json:"blocknumber"`       // Block number
-	RecordsRaw        []apiBlockRecordRaw `json:"recordsraw"`        // Block records raw. Successfully decoded records are parsed into the below fields.
-	decoded           struct {
-		User  apiBlockRecordUser   `json:"user"`  // User details
-		Files []apiBlockRecordFile `json:"files"` // Files
-	} `json:"decoded"`
+	RecordsRaw        []apiBlockRecordRaw `json:"recordsraw"`        // Records raw. Successfully decoded records are parsed into the below fields.
+	RecordsDecoded    []interface{}       `json:"recordsdecoded"`    // Records decoded. The encoding for each record depends on its type.
 }
 
-type apiBlockRecordUser struct {
-	NameValid     bool   `json:"namevalid"`     // Whether the name is supplied in this structure.
-	Name          string `json:"name"`          // Arbitrary name of the user.
-	NameSanitized string `json:"namesanitized"` // Sanitized version of the name.
+type apiBlockRecordProfile struct {
+	Fields []apiBlockRecordProfileField `json:"fields"` // All fields
+	Blobs  []apiBlockRecordProfileBlob  `json:"blobs"`  // Blobs
+}
+
+type apiBlockRecordProfileField struct {
+	Type uint16 `json:"type"` // See ProfileFieldX constants.
+	Text string `json:"text"` // The data
+}
+
+type apiBlockRecordProfileBlob struct {
+	Type uint16 `json:"type"` // See ProfileBlobX constants.
+	Data []byte `json:"data"` // The data
+}
+
+type apiFileTag struct {
+	Key  string `json:"key"`  // Name of the tag
+	Text string `json:"text"` // Text value of the tag
 }
 
 type apiBlockRecordFile struct {
-	Hash      []byte // Hash of the file data
-	Type      uint8  // Type (low-level)
-	Format    uint16 // Format (high-level)
-	Size      uint64 // Size of the file
-	Directory string // Directory
-	Name      string // File name
+	ID          uuid.UUID    `json:"id"`          // Unique ID.
+	Hash        []byte       `json:"hash"`        // Blake3 hash of the file data
+	Type        uint8        `json:"type"`        // Type (low-level)
+	Format      uint16       `json:"format"`      // Format (high-level)
+	Size        uint64       `json:"size"`        // Size of the file
+	Folder      string       `json:"folder"`      // Folder, optional
+	Name        string       `json:"name"`        // Name of the file
+	Description string       `json:"description"` // Description. This is expected to be multiline and contain hashtags!
+	Tags        []apiFileTag `json:"tags"`        // Tags
 }
 ```
 
@@ -208,12 +222,13 @@ Example POST request data to `http://127.0.0.1:112/blockchain/self/add/file`:
 ```json
 {
     "files": [{
+		"id": "236de31d-f402-4389-bdd1-56463abdc309",
         "hash": "aFad3zRACbk44dsOw5sVGxYmz+Rqh8ORDcGJNqIz+Ss=",
         "type": 1,
         "format": 10,
         "size": 4,
         "name": "Test.txt",
-        "directory": "sample directory/sub folder"
+        "folder": "sample directory/sub folder"
     }]
 }
 ```
@@ -233,12 +248,15 @@ Example output:
 ```json
 {
     "files": [{
+        "id": "a59b6465-fe8c-4a61-9fcc-fe37cf711fd4",
         "hash": "aFad3zRACbk44dsOw5sVGxYmz+Rqh8ORDcGJNqIz+Ss=",
         "type": 1,
         "format": 10,
         "size": 4,
-        "directory": "sample directory/sub folder",
-        "name": "Test.txt"
+        "folder": "sample directory/sub folder",
+        "name": "Test.txt",
+        "description": "",
+        "tags": []
     }],
     "status": 0
 }
