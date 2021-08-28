@@ -433,7 +433,7 @@ func apiBlockchainSelfListFile(w http.ResponseWriter, r *http.Request) {
 
 func isFileTagKnownMetadata(tagType uint16) bool {
 	switch tagType {
-	case core.TagTypeName, core.TagTypeFolder, core.TagTypeDescription, core.TagTypeDateCreated:
+	case core.TagTypeName, core.TagTypeFolder, core.TagTypeDescription, core.TagTypeDateCreated, core.TagTypeDateShared:
 		return true
 
 	default:
@@ -463,8 +463,11 @@ func blockRecordFileToAPI(input core.BlockRecordFile) (output apiBlockRecordFile
 		case core.FileTagDescription:
 			output.Description = v.Description
 
-		case core.FileTagCreated:
+		case core.FileTagDateCreated:
 			output.Metadata = append(output.Metadata, apiFileMetadata{Type: core.TagTypeDateCreated, Name: "Date Created", Value: v.Date.Format(dateFormat)})
+
+		case core.FileTagDateShared:
+			output.Metadata = append(output.Metadata, apiFileMetadata{Type: core.TagTypeDateCreated, Name: "Date Shared", Value: v.Date.Format(dateFormat)})
 
 		}
 	}
@@ -489,7 +492,7 @@ func blockRecordFileFromAPI(input apiBlockRecordFile) (output core.BlockRecordFi
 		switch tag.Type {
 		case core.TagTypeDateCreated:
 			if dateF, err := time.Parse(dateFormat, tag.Value); err == nil {
-				output.TagsDecoded = append(output.TagsDecoded, core.FileTagCreated{Date: dateF})
+				output.TagsDecoded = append(output.TagsDecoded, core.FileTagDateCreated{Date: dateF})
 			}
 		}
 	}

@@ -303,7 +303,11 @@ Example output:
         "folder": "sample directory/sub folder",
         "name": "Test.txt",
         "description": "",
-        "metadata": [],
+        "metadata": [{
+            "type": 2,
+            "name": "Date Shared",
+            "value": "2021-08-27 16:59:13"
+        }],
         "tagsraw": []
     }],
     "status": 0
