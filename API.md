@@ -162,7 +162,13 @@ type apiBlockchainBlock struct {
 	RecordsRaw        []apiBlockRecordRaw `json:"recordsraw"`        // Records raw. Successfully decoded records are parsed into the below fields.
 	RecordsDecoded    []interface{}       `json:"recordsdecoded"`    // Records decoded. The encoding for each record depends on its type.
 }
+```
 
+The array `RecordsDecoded` will contain any present record of the following:
+* Profile records, see `apiBlockRecordProfile`
+* File records, see `apiBlockRecordFile`
+
+```go
 type apiBlockRecordProfile struct {
 	Fields []apiBlockRecordProfileField `json:"fields"` // All fields
 	Blobs  []apiBlockRecordProfileBlob  `json:"blobs"`  // Blobs
@@ -177,22 +183,35 @@ type apiBlockRecordProfileBlob struct {
 	Type uint16 `json:"type"` // See ProfileBlobX constants.
 	Data []byte `json:"data"` // The data
 }
+```
 
-type apiFileTag struct {
-	Key  string `json:"key"`  // Name of the tag
-	Text string `json:"text"` // Text value of the tag
+```go
+type apiBlockRecordFile struct {
+	ID          uuid.UUID         `json:"id"`          // Unique ID.
+	Hash        []byte            `json:"hash"`        // Blake3 hash of the file data
+	Type        uint8             `json:"type"`        // Type (low-level)
+	Format      uint16            `json:"format"`      // Format (high-level)
+	Size        uint64            `json:"size"`        // Size of the file
+	Folder      string            `json:"folder"`      // Folder, optional
+	Name        string            `json:"name"`        // Name of the file
+	Description string            `json:"description"` // Description. This is expected to be multiline and contain hashtags!
+	Metadata    []apiFileMetadata `json:"metadata"`    // Metadata. These are decoded tags.
+	TagsRaw     []apiFileTagRaw   `json:"tagsraw"`     // All tags encoded that were not recognized as metadata.
+
+	// The following known tags from the core library are decoded into metadata or other fields in above structure; everything else is a raw tag:
+	// TagTypeName, TagTypeFolder, TagTypeDescription, TagTypeDateCreated
+	// The caller can specify its own metadata fields and fill the TagsRaw structure when creating a new file. It will be returned when reading the files' data.
 }
 
-type apiBlockRecordFile struct {
-	ID          uuid.UUID    `json:"id"`          // Unique ID.
-	Hash        []byte       `json:"hash"`        // Blake3 hash of the file data
-	Type        uint8        `json:"type"`        // Type (low-level)
-	Format      uint16       `json:"format"`      // Format (high-level)
-	Size        uint64       `json:"size"`        // Size of the file
-	Folder      string       `json:"folder"`      // Folder, optional
-	Name        string       `json:"name"`        // Name of the file
-	Description string       `json:"description"` // Description. This is expected to be multiline and contain hashtags!
-	Tags        []apiFileTag `json:"tags"`        // Tags
+type apiFileMetadata struct {
+	Type  uint16 `json:"type"`  // See core.TagTypeX constants.
+	Name  string `json:"name"`  // User friendly name of the tag. Use the Type fields to identify the metadata as this name may change.
+	Value string `json:"value"` // Text value of the tag.
+}
+
+type apiFileTagRaw struct {
+	Type uint16 `json:"type"` // See core.TagTypeX constants.
+	Data []byte `json:"data"` // Data
 }
 ```
 
@@ -222,13 +241,41 @@ Example POST request data to `http://127.0.0.1:112/blockchain/self/add/file`:
 ```json
 {
     "files": [{
-		"id": "236de31d-f402-4389-bdd1-56463abdc309",
+        "id": "236de31d-f402-4389-bdd1-56463abdc309",
         "hash": "aFad3zRACbk44dsOw5sVGxYmz+Rqh8ORDcGJNqIz+Ss=",
         "type": 1,
         "format": 10,
         "size": 4,
         "name": "Test.txt",
-        "folder": "sample directory/sub folder"
+        "folder": "sample directory/sub folder",
+        "description": "",
+        "metadata": [],
+        "tagsraw": []
+    }]
+}
+```
+
+Another example to create a new file but with a new arbitrary tag with type number 100 set to "test" and setting the metadata field "Date Created" (which is type 2 = `core.TagTypeDateCreated`):
+
+```json
+{
+    "files": [{
+        "id": "bc32cbae-011d-4f0b-80a8-281ca93692e7",
+        "hash": "aFad3zRACbk44dsOw5sVGxYmz+Rqh8ORDcGJNqIz+Ss=",
+        "type": 1,
+        "format": 10,
+        "size": 4,
+        "name": "Test.txt",
+        "folder": "sample directory/sub folder",
+        "description": "Example description\nThis can be any text #newfile #2021.",
+        "metadata": [{
+        "type": 2,
+            "value": "2021-08-28 00:00:00"
+        }],
+        "tagsraw":  [{
+            "type": 100,
+            "data": "dGVzdA=="
+        }]
     }]
 }
 ```
@@ -256,7 +303,8 @@ Example output:
         "folder": "sample directory/sub folder",
         "name": "Test.txt",
         "description": "",
-        "tags": []
+        "metadata": [],
+        "tagsraw": []
     }],
     "status": 0
 }

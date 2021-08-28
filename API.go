@@ -306,26 +306,35 @@ type apiBlockRecordProfileBlob struct {
 	Data []byte `json:"data"` // The data
 }
 
-// apiFileTag describes a generic tag.
-// Note that not all tags may be able to be decoded into this generic structure!
-// This structure exists for known (defined) tags that do not have a fixed field in the apiBlockRecordFile structure.
-// The blockchain supports not yet (future/custom) defined tags, which are accessible via the core.UserBlockchainX functions.
-type apiFileTag struct {
-	Key  string `json:"key"`  // Name of the tag
-	Text string `json:"text"` // Text value of the tag
+// apiFileMetadata describes recognized metadata that is decoded into text.
+type apiFileMetadata struct {
+	Type  uint16 `json:"type"`  // See core.TagTypeX constants.
+	Name  string `json:"name"`  // User friendly name of the tag. Use the Type fields to identify the metadata as this name may change.
+	Value string `json:"value"` // Text value of the tag.
+}
+
+// apiFileTagRaw describes a raw tag. This allows to support future metadata that is not yet defined in the core library.
+type apiFileTagRaw struct {
+	Type uint16 `json:"type"` // See core.TagTypeX constants.
+	Data []byte `json:"data"` // Data
 }
 
 // apiBlockRecordFile is the metadata of a file published on the blockchain
 type apiBlockRecordFile struct {
-	ID          uuid.UUID    `json:"id"`          // Unique ID.
-	Hash        []byte       `json:"hash"`        // Blake3 hash of the file data
-	Type        uint8        `json:"type"`        // Type (low-level)
-	Format      uint16       `json:"format"`      // Format (high-level)
-	Size        uint64       `json:"size"`        // Size of the file
-	Folder      string       `json:"folder"`      // Folder, optional
-	Name        string       `json:"name"`        // Name of the file
-	Description string       `json:"description"` // Description. This is expected to be multiline and contain hashtags!
-	Tags        []apiFileTag `json:"tags"`        // Tags
+	ID          uuid.UUID         `json:"id"`          // Unique ID.
+	Hash        []byte            `json:"hash"`        // Blake3 hash of the file data
+	Type        uint8             `json:"type"`        // Type (low-level)
+	Format      uint16            `json:"format"`      // Format (high-level)
+	Size        uint64            `json:"size"`        // Size of the file
+	Folder      string            `json:"folder"`      // Folder, optional
+	Name        string            `json:"name"`        // Name of the file
+	Description string            `json:"description"` // Description. This is expected to be multiline and contain hashtags!
+	Metadata    []apiFileMetadata `json:"metadata"`    // Metadata. These are decoded tags.
+	TagsRaw     []apiFileTagRaw   `json:"tagsraw"`     // All tags encoded that were not recognized as metadata.
+
+	// The following known tags from the core library are decoded into metadata or other fields in above structure; everything else is a raw tag:
+	// TagTypeName, TagTypeFolder, TagTypeDescription, TagTypeDateCreated
+	// The caller can specify its own metadata fields and fill the TagsRaw structure when creating a new file. It will be returned when reading the files' data.
 }
 
 /*
@@ -422,10 +431,27 @@ func apiBlockchainSelfListFile(w http.ResponseWriter, r *http.Request) {
 
 // --- conversion from core to API data ---
 
-func blockRecordFileToAPI(input core.BlockRecordFile) (output apiBlockRecordFile) {
-	output = apiBlockRecordFile{ID: input.ID, Hash: input.Hash, Type: input.Type, Format: input.Format, Size: input.Size}
-	output.Tags = []apiFileTag{}
+func isFileTagKnownMetadata(tagType uint16) bool {
+	switch tagType {
+	case core.TagTypeName, core.TagTypeFolder, core.TagTypeDescription, core.TagTypeDateCreated:
+		return true
 
+	default:
+		return false
+	}
+}
+
+func blockRecordFileToAPI(input core.BlockRecordFile) (output apiBlockRecordFile) {
+	output = apiBlockRecordFile{ID: input.ID, Hash: input.Hash, Type: input.Type, Format: input.Format, Size: input.Size, TagsRaw: []apiFileTagRaw{}, Metadata: []apiFileMetadata{}}
+
+	// Copy all raw tags. This allows the API caller to decode any future tags that are not defined yet.
+	for n := range input.TagsRaw {
+		if !isFileTagKnownMetadata(input.TagsRaw[n].Type) {
+			output.TagsRaw = append(output.TagsRaw, apiFileTagRaw{Type: input.TagsRaw[n].Type, Data: input.TagsRaw[n].Data})
+		}
+	}
+
+	// Try to decode tags into known metadata.
 	for _, tagDecoded := range input.TagsDecoded {
 		switch v := tagDecoded.(type) {
 		case core.FileTagName:
@@ -438,7 +464,7 @@ func blockRecordFileToAPI(input core.BlockRecordFile) (output apiBlockRecordFile
 			output.Description = v.Description
 
 		case core.FileTagCreated:
-			output.Tags = append(output.Tags, apiFileTag{Key: "created", Text: v.Date.Format(dateFormat)})
+			output.Metadata = append(output.Metadata, apiFileMetadata{Type: core.TagTypeDateCreated, Name: "Date Created", Value: v.Date.Format(dateFormat)})
 
 		}
 	}
@@ -459,12 +485,18 @@ func blockRecordFileFromAPI(input apiBlockRecordFile) (output core.BlockRecordFi
 		output.TagsDecoded = append(output.TagsDecoded, core.FileTagDescription{Description: input.Description})
 	}
 
-	for _, tag := range input.Tags {
-		switch tag.Key {
-		case "created":
-			if dateF, err := time.Parse(dateFormat, tag.Text); err == nil {
+	for _, tag := range input.Metadata {
+		switch tag.Type {
+		case core.TagTypeDateCreated:
+			if dateF, err := time.Parse(dateFormat, tag.Value); err == nil {
 				output.TagsDecoded = append(output.TagsDecoded, core.FileTagCreated{Date: dateF})
 			}
+		}
+	}
+
+	for n := range input.TagsRaw {
+		if !isFileTagKnownMetadata(input.TagsRaw[n].Type) {
+			output.TagsRaw = append(output.TagsRaw, core.BlockRecordFileTag{Type: input.TagsRaw[n].Type, Data: input.TagsRaw[n].Data})
 		}
 	}
 
