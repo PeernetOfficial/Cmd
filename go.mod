@@ -3,7 +3,7 @@ module github.com/PeernetOfficial/Cmd
 go 1.16
 
 require (
-	github.com/PeernetOfficial/core v0.0.0-20210827153836-7c88763f28d5
+	github.com/PeernetOfficial/core v0.0.0-20210828112606-a3750af1c82c
 	github.com/btcsuite/btcd v0.22.0-beta.0.20210625194946-86a17263b0ff
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.1-0.20200912192056-d07530f46e1e
