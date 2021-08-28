@@ -304,7 +304,7 @@ Example output:
         "name": "Test.txt",
         "description": "",
         "metadata": [{
-            "type": 2,
+            "type": 4,
             "name": "Date Shared",
             "value": "2021-08-27 16:59:13"
         }],
