@@ -44,6 +44,10 @@ These are the functions provided by the API:
 /blockchain/self/read       Read a block of the blockchain
 /blockchain/self/add/file   Add file to the blockchain
 /blockchain/self/list/file  List all files stored on the blockchain
+
+/profile/list               List all users profile fields and blobs
+/profile/read               Reads a specific users profile field or blob
+/profile/write              Writes a specific users profile field or blob
 ```
 
 The `/share` functions are providing high-level functionality to work with files. The `/blockchain` functions provide low-level functionality which is typically not needed.
@@ -236,7 +240,7 @@ type apiBlockchainBlockStatus struct {
 }
 ```
 
-Example POST request data to `http://127.0.0.1:112/blockchain/self/add/file`:
+Example POST request to `http://127.0.0.1:112/blockchain/self/add/file`:
 
 ```json
 {
@@ -311,5 +315,118 @@ Example output:
         "tagsraw": []
     }],
     "status": 0
+}
+```
+
+## Profile List
+
+```
+Request:    GET /profile/list
+
+Response:   200 with JSON structure apiProfileData
+```
+
+```go
+type apiProfileData struct {
+	Fields []apiBlockRecordProfileField `json:"fields"` // All fields
+	Blobs  []apiBlockRecordProfileBlob  `json:"blobs"`  // All blobs
+	Status int                          `json:"status"` // Status of the operation, only used when this structure is returned from the API. See core.BlockchainStatusX.
+}
+
+const (
+	BlockchainStatusOK                 = 0 // No problems in the blockchain detected.
+	BlockchainStatusBlockNotFound      = 1 // Missing block in the blockchain.
+	BlockchainStatusCorruptBlock       = 2 // Error block encoding
+	BlockchainStatusCorruptBlockRecord = 3 // Error block record encoding
+	BlockchainStatusDataNotFound       = 4 // Requested data not available in the blockchain
+)
+```
+
+Example request: `http://127.0.0.1:112/profile/list`
+
+Example response:
+
+```json
+{
+    "fields": [{
+        "type": 0,
+        "text": "Test Username 2022"
+    }, {
+        "type": 1,
+        "text": "test@example.com"
+    }],
+    "blobs": null,
+    "status": 0
+}
+```
+
+## Profile Read
+
+This reads a specific users' profile field or blob. For the index see the `ProfileFieldX` and `ProfileBlobX` constants.
+
+```
+Request:    GET /profile/read?field=[index] or &blob=[index]
+
+Response:   200 with JSON structure apiProfileData
+```
+
+```go
+// ProfileFieldX constants define well known profile information
+const (
+	ProfileFieldName    = 0 // Arbitrary username
+	ProfileFieldEmail   = 1 // Email address
+	ProfileFieldWebsite = 2 // Website address
+	ProfileFieldTwitter = 3 // Twitter account without the @
+	ProfileFieldYouTube = 4 // YouTube channel URL
+	ProfileFieldAddress = 5 // Physical address
+)
+
+// ProfileBlobX constants define well known blobs
+// Pictures should be in JPEG or PNG format.
+const (
+	ProfileBlobPicture = 0 // Profile picture, unspecified size
+)
+```
+
+Example request to read the users username: `http://127.0.0.1:112/profile/read?field=0`
+
+Example response:
+
+```json
+{
+    "fields": [{
+        "type": 0,
+        "text": "Test Username 2022"
+    }],
+    "blobs": null,
+    "status": 0
+}
+```
+
+## Profile Write
+
+```
+Request:    POST /profile/write with JSON structure apiProfileData
+
+Response:   200 with JSON structure apiBlockchainBlockStatus
+```
+
+Example POST request to `http://127.0.0.1:112/profile/write`:
+
+```json
+{
+    "fields": [{
+        "type": 0,
+        "text": "Test Username 2021"
+    }]
+}
+```
+
+Example response:
+
+```json
+{
+    "status": 0,
+    "height": 1
 }
 ```
