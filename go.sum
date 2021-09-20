@@ -1,7 +1,5 @@
-github.com/PeernetOfficial/core v0.0.0-20210910114007-19e29b3a910a h1:1ebpb3L6PGLI8lX5xkeXKOxoATOoedMUamAnl0elJ04=
-github.com/PeernetOfficial/core v0.0.0-20210910114007-19e29b3a910a/go.mod h1:c2AGQxju2HdM8mrsgy6nFX3mW2TGs0/00kggbBqLB+o=
-github.com/PeernetOfficial/core v0.0.0-20210910124301-3f3e6d9df12f h1:CsnhRuitE9z/qXI7iWLhEnI35bRbrCcY8dN7xoeYsT0=
-github.com/PeernetOfficial/core v0.0.0-20210910124301-3f3e6d9df12f/go.mod h1:c2AGQxju2HdM8mrsgy6nFX3mW2TGs0/00kggbBqLB+o=
+github.com/PeernetOfficial/core v0.0.0-20210920122023-149984eeb3da h1:ZmxYn/C8SNpOLrp1AWiAHB0Av46hG9sZAm1sdAbS7l4=
+github.com/PeernetOfficial/core v0.0.0-20210920122023-149984eeb3da/go.mod h1:c2AGQxju2HdM8mrsgy6nFX3mW2TGs0/00kggbBqLB+o=
 github.com/aead/siphash v1.0.1/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBAUSII=
 github.com/akrylysov/pogreb v0.10.1 h1:FqlR8VR7uCbJdfUob916tPM+idpKgeESDXOA1K0DK4w=
 github.com/akrylysov/pogreb v0.10.1/go.mod h1:pNs6QmpQ1UlTJKDezuRWmaqkgUE2TuU0YTWyqJZ7+lI=
