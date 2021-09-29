@@ -1,5 +1,5 @@
-github.com/PeernetOfficial/core v0.0.0-20210928033938-608dbf6f4779 h1:bQLpIyH2VNYPCnnw1v7gJsPbNkEPz8+/9HkrpqwSt4g=
-github.com/PeernetOfficial/core v0.0.0-20210928033938-608dbf6f4779/go.mod h1:c2AGQxju2HdM8mrsgy6nFX3mW2TGs0/00kggbBqLB+o=
+github.com/PeernetOfficial/core v0.0.0-20210929182053-d29fc960b639 h1:cJParg//409cF9PKhK5+N6M4AzhgAvxE5luMvF15W5c=
+github.com/PeernetOfficial/core v0.0.0-20210929182053-d29fc960b639/go.mod h1:c2AGQxju2HdM8mrsgy6nFX3mW2TGs0/00kggbBqLB+o=
 github.com/aead/siphash v1.0.1/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBAUSII=
 github.com/akrylysov/pogreb v0.10.1 h1:FqlR8VR7uCbJdfUob916tPM+idpKgeESDXOA1K0DK4w=
 github.com/akrylysov/pogreb v0.10.1/go.mod h1:pNs6QmpQ1UlTJKDezuRWmaqkgUE2TuU0YTWyqJZ7+lI=
