@@ -4,3 +4,4 @@ log.txt
 *.yaml
 .vscode
 self.*
+warehouse
