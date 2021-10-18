@@ -51,7 +51,6 @@ func init() {
 
 	monitorKeys = make(map[string]struct{})
 
-	core.UserAgent = appName + "/" + core.Version
 	core.Filters.LogError = logError
 	core.Filters.DHTSearchStatus = filterSearchStatus
 	core.Filters.IncomingRequest = filterIncomingRequest
@@ -62,7 +61,9 @@ func init() {
 	core.Filters.MessageOutPing = filterMessageOutPing
 	core.Filters.MessageOutPong = filterMessageOutPong
 
-	core.Init()
+	userAgent := appName + "/" + core.Version
+
+	core.Init(userAgent)
 }
 
 func main() {
