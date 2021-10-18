@@ -20,6 +20,7 @@ import (
 
 	"github.com/PeernetOfficial/core"
 	"github.com/PeernetOfficial/core/dht"
+	"github.com/PeernetOfficial/core/protocol"
 	"github.com/btcsuite/btcd/btcec"
 )
 
@@ -109,17 +110,17 @@ func userCommands(input io.Reader, output io.Writer, terminateSignal chan struct
 
 			features := ""
 			featureSupport := core.FeatureSupport()
-			if featureSupport&(1<<core.FeatureIPv4Listen) > 0 {
+			if featureSupport&(1<<protocol.FeatureIPv4Listen) > 0 {
 				features = "IPv4"
 			}
-			if featureSupport&(1<<core.FeatureIPv6Listen) > 0 {
+			if featureSupport&(1<<protocol.FeatureIPv6Listen) > 0 {
 				if len(features) > 0 {
 					features += ", "
 				}
 				features += "IPv6"
 			}
 
-			fmt.Fprintf(output, "User Agent: %s\nFeatures:   %s\n\n", core.UserAgent, features)
+			fmt.Fprintf(output, "User Agent: %s\nFeatures:   %s\n\n", core.SelfUserAgent(), features)
 
 			fmt.Fprintf(output, "Listen Address                                  Multicast IP out                  External Address\n")
 
@@ -283,7 +284,7 @@ func userCommands(input io.Reader, output io.Writer, terminateSignal chan struct
 					continue
 				}
 
-				nodeID = core.PublicKey2NodeID(publicKey)
+				nodeID = protocol.PublicKey2NodeID(publicKey)
 			} else {
 				// Node ID was supplied.
 				if nodeID, err = hex.DecodeString(text); err != nil || len(nodeID) != 256/8 {

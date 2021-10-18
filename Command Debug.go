@@ -15,6 +15,7 @@ import (
 
 	"github.com/PeernetOfficial/core"
 	"github.com/PeernetOfficial/core/dht"
+	"github.com/PeernetOfficial/core/protocol"
 	"github.com/btcsuite/btcd/btcec"
 )
 
@@ -128,17 +129,17 @@ func filterIncomingRequest(peer *core.PeerInfo, Action int, Key []byte, Info int
 
 	requestType := "UNKNOWN"
 	switch Action {
-	case core.ActionFindSelf:
+	case protocol.ActionFindSelf:
 		requestType = "FIND_SELF"
-	case core.ActionFindPeer:
+	case protocol.ActionFindPeer:
 		requestType = "FIND_PEER"
-	case core.ActionFindValue:
+	case protocol.ActionFindValue:
 		requestType = "FIND_VALUE"
-	case core.ActionInfoStore:
+	case protocol.ActionInfoStore:
 		requestType = "INFO_STORE"
 	}
 
-	if Action == core.ActionFindSelf && bytes.Equal(peer.NodeID, Key) {
+	if Action == protocol.ActionFindSelf && bytes.Equal(peer.NodeID, Key) {
 		fmt.Printf("Info request from %s %s\n", hex.EncodeToString(peer.NodeID), requestType)
 	} else {
 		fmt.Printf("Info request from %s %s for key %s\n", hex.EncodeToString(peer.NodeID), requestType, hex.EncodeToString(Key))
@@ -147,7 +148,7 @@ func filterIncomingRequest(peer *core.PeerInfo, Action int, Key []byte, Info int
 
 // ---- filter for incoming and outgoing packets ----
 
-func filterMessageIn(peer *core.PeerInfo, raw *core.MessageRaw, message interface{}) {
+func filterMessageIn(peer *core.PeerInfo, raw *protocol.MessageRaw, message interface{}) {
 	if !hashIsMonitored(peer.NodeID) {
 		// TODO: For Announcement/Response also check data, Traverse the final target
 		return
@@ -156,19 +157,19 @@ func filterMessageIn(peer *core.PeerInfo, raw *core.MessageRaw, message interfac
 	commandA := "Unknown"
 
 	switch raw.Command {
-	case core.CommandAnnouncement:
+	case protocol.CommandAnnouncement:
 		commandA = "Announcement"
-	case core.CommandResponse:
+	case protocol.CommandResponse:
 		commandA = "Response"
-	case core.CommandPing:
+	case protocol.CommandPing:
 		commandA = "Ping"
-	case core.CommandPong:
+	case protocol.CommandPong:
 		commandA = "Pong"
-	case core.CommandLocalDiscovery:
+	case protocol.CommandLocalDiscovery:
 		commandA = "Local Discovery"
-	case core.CommandTraverse:
+	case protocol.CommandTraverse:
 		commandA = "Traverse"
-	case core.CommandChat:
+	case protocol.CommandChat:
 		commandA = "Chat"
 	}
 
@@ -181,7 +182,7 @@ func filterMessageIn(peer *core.PeerInfo, raw *core.MessageRaw, message interfac
 
 	if message == nil {
 		output += "(no message decoded)\n"
-	} else if announce, ok := message.(*core.MessageAnnouncement); ok {
+	} else if announce, ok := message.(*protocol.MessageAnnouncement); ok {
 		output += fmt.Sprintf("Fields:\n  Protocol supported    %d\n", announce.Protocol)
 		output += fmt.Sprintf("  Feature bits          %d\n", announce.Features)
 		output += fmt.Sprintf("  Action bits           %d\n", announce.Actions)
@@ -209,7 +210,7 @@ func filterMessageIn(peer *core.PeerInfo, raw *core.MessageRaw, message interfac
 		for _, info := range announce.InfoStoreFiles {
 			output += fmt.Sprintf("    - Info store %s, type %d, size %d\n", hex.EncodeToString(info.ID.Hash), info.Type, info.Size)
 		}
-	} else if response, ok := message.(*core.MessageResponse); ok {
+	} else if response, ok := message.(*protocol.MessageResponse); ok {
 		output += fmt.Sprintf("Fields:\n  Protocol supported    %d\n", response.Protocol)
 		output += fmt.Sprintf("  Feature bits          %d\n", response.Features)
 		output += fmt.Sprintf("  Action bits           %d\n", response.Actions)
@@ -238,7 +239,7 @@ func filterMessageIn(peer *core.PeerInfo, raw *core.MessageRaw, message interfac
 		for _, hash := range response.HashesNotFound {
 			output += fmt.Sprintf("    - Hash not found %s\n", hex.EncodeToString(hash))
 		}
-	} else if traverse, ok := message.(*core.MessageTraverse); ok {
+	} else if traverse, ok := message.(*protocol.MessageTraverse); ok {
 		output += fmt.Sprintf("Fields:\n  Target Peer                     %s\n", hex.EncodeToString(traverse.TargetPeer.SerializeCompressed()))
 		output += fmt.Sprintf("  Authorized Relay Peer           %s\n", hex.EncodeToString(traverse.AuthorizedRelayPeer.SerializeCompressed()))
 		output += fmt.Sprintf("  Signer Public Key               %s\n", hex.EncodeToString(traverse.SignerPublicKey.SerializeCompressed()))
@@ -256,7 +257,7 @@ func filterMessageIn(peer *core.PeerInfo, raw *core.MessageRaw, message interfac
 	fmt.Printf("%s", output)
 }
 
-func outputPeerRecord(record *core.PeerRecord) (output string) {
+func outputPeerRecord(record *protocol.PeerRecord) (output string) {
 	output += fmt.Sprintf("      * Peer ID                         %s\n", hex.EncodeToString(record.PublicKey.SerializeCompressed()))
 	output += fmt.Sprintf("        Node ID                         %s\n", hex.EncodeToString(record.NodeID))
 	if record.IPv4 != nil && !record.IPv4.IsUnspecified() {
@@ -276,7 +277,7 @@ func outputPeerRecord(record *core.PeerRecord) (output string) {
 	return
 }
 
-func outputOutgoingMessage(peer *core.PeerInfo, packet *core.PacketRaw) {
+func outputOutgoingMessage(peer *core.PeerInfo, packet *protocol.PacketRaw) {
 	if !hashIsMonitored(peer.NodeID) {
 		// TODO: For Announcement/Response also check data, Traverse the final target
 		return
@@ -285,19 +286,19 @@ func outputOutgoingMessage(peer *core.PeerInfo, packet *core.PacketRaw) {
 	commandA := "Unknown"
 
 	switch packet.Command {
-	case core.CommandAnnouncement:
+	case protocol.CommandAnnouncement:
 		commandA = "Announcement"
-	case core.CommandResponse:
+	case protocol.CommandResponse:
 		commandA = "Response"
-	case core.CommandPing:
+	case protocol.CommandPing:
 		commandA = "Ping"
-	case core.CommandPong:
+	case protocol.CommandPong:
 		commandA = "Pong"
-	case core.CommandLocalDiscovery:
+	case protocol.CommandLocalDiscovery:
 		commandA = "Local Discovery"
-	case core.CommandTraverse:
+	case protocol.CommandTraverse:
 		commandA = "Traverse"
-	case core.CommandChat:
+	case protocol.CommandChat:
 		commandA = "Chat"
 	}
 
@@ -311,26 +312,26 @@ func outputOutgoingMessage(peer *core.PeerInfo, packet *core.PacketRaw) {
 	fmt.Printf("%s", output)
 }
 
-func filterMessageOutAnnouncement(receiverPublicKey *btcec.PublicKey, peer *core.PeerInfo, packet *core.PacketRaw, findSelf bool, findPeer []core.KeyHash, findValue []core.KeyHash, files []core.InfoStore) {
+func filterMessageOutAnnouncement(receiverPublicKey *btcec.PublicKey, peer *core.PeerInfo, packet *protocol.PacketRaw, findSelf bool, findPeer []protocol.KeyHash, findValue []protocol.KeyHash, files []protocol.InfoStore) {
 	if peer == nil {
-		peer = &core.PeerInfo{PublicKey: receiverPublicKey, NodeID: core.PublicKey2NodeID(receiverPublicKey)}
+		peer = &core.PeerInfo{PublicKey: receiverPublicKey, NodeID: protocol.PublicKey2NodeID(receiverPublicKey)}
 	}
 
 	outputOutgoingMessage(peer, packet)
 }
 
-func filterMessageOutResponse(peer *core.PeerInfo, packet *core.PacketRaw, hash2Peers []core.Hash2Peer, filesEmbed []core.EmbeddedFileData, hashesNotFound [][]byte) {
+func filterMessageOutResponse(peer *core.PeerInfo, packet *protocol.PacketRaw, hash2Peers []protocol.Hash2Peer, filesEmbed []protocol.EmbeddedFileData, hashesNotFound [][]byte) {
 	outputOutgoingMessage(peer, packet)
 }
 
-func filterMessageOutTraverse(peer *core.PeerInfo, packet *core.PacketRaw, embeddedPacket *core.PacketRaw, receiverEnd *btcec.PublicKey) {
+func filterMessageOutTraverse(peer *core.PeerInfo, packet *protocol.PacketRaw, embeddedPacket *protocol.PacketRaw, receiverEnd *btcec.PublicKey) {
 	outputOutgoingMessage(peer, packet)
 }
 
-func filterMessageOutPing(peer *core.PeerInfo, packet *core.PacketRaw, connection *core.Connection) {
+func filterMessageOutPing(peer *core.PeerInfo, packet *protocol.PacketRaw, connection *core.Connection) {
 	outputOutgoingMessage(peer, packet)
 }
 
-func filterMessageOutPong(peer *core.PeerInfo, packet *core.PacketRaw) {
+func filterMessageOutPong(peer *core.PeerInfo, packet *protocol.PacketRaw) {
 	outputOutgoingMessage(peer, packet)
 }
