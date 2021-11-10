@@ -25,8 +25,8 @@ var config struct {
 	APIUseSSL          bool     `yaml:"APIUseSSL"`          // Enables SSL.
 	APICertificateFile string   `yaml:"APICertificateFile"` // This is the certificate received from the CA. This can also include the intermediate certificate from the CA.
 	APICertificateKey  string   `yaml:"APICertificateKey"`  // This is the private key.
-	APITimeoutRead     string   `yaml:"HTTPTimeoutRead"`    // The maximum duration for reading the entire request, including the body.
-	APITimeoutWrite    string   `yaml:"HTTPTimeoutWrite"`   // The maximum duration before timing out writes of the response. This includes processing time and is therefore the max time any HTTP function may take.
+	APITimeoutRead     string   `yaml:"APITimeoutRead"`     // The maximum duration for reading the entire request, including the body.
+	APITimeoutWrite    string   `yaml:"APITimeoutWrite"`    // The maximum duration before timing out writes of the response. This includes processing time and is therefore the max time any HTTP function may take.
 }
 
 func init() {
