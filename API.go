@@ -8,19 +8,31 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/PeernetOfficial/core/webapi"
 	"github.com/gorilla/websocket"
 )
 
+// startAPI starts the API if enabled via command line parameter or if the settings are set in the config file.
+// Using the command line option always ignores any API settings from the config (including timeout settings).
 func startAPI() {
-	if len(config.APIListen) == 0 {
+	if apiListen := parseCmdParamWebapi(); len(apiListen) > 0 {
+		// API listen parameter via command line argument.
+		// Note that read and write timeouts are set to 0 which means they are not used. SSL is not enabled.
+		webapi.Start(apiListen, false, "", "", 0, 0)
+
+	} else if len(config.APIListen) != 0 {
+		// API settings via config file.
+		webapi.Start(config.APIListen, config.APIUseSSL, config.APICertificateFile, config.APICertificateKey, parseDuration(config.APITimeoutRead), parseDuration(config.APITimeoutWrite))
+		return
+	} else {
 		return
 	}
 
-	webapi.Start(config.APIListen, config.APIUseSSL, config.APICertificateFile, config.APICertificateKey, parseDuration(config.APITimeoutRead), parseDuration(config.APITimeoutWrite))
 	webapi.Router.HandleFunc("/console", apiConsole).Methods("GET")
 }
 
@@ -86,4 +98,17 @@ func apiConsole(w http.ResponseWriter, r *http.Request) {
 
 		bufferR.Write(message)
 	}
+}
+
+// parseCmdParamWebapi parses a "-webapi=" command line parameter
+func parseCmdParamWebapi() (apiListen []string) {
+	var param string
+	flag.StringVar(&param, "webapi", "", "Specify the list of IP:Ports for the webapi to listen. Example: -webapi=127.0.0.1:1234")
+	flag.Parse()
+
+	if len(param) == 0 {
+		return nil
+	}
+
+	return strings.Split(param, ",")
 }
