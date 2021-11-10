@@ -21,6 +21,7 @@ import (
 	"github.com/PeernetOfficial/core"
 	"github.com/PeernetOfficial/core/dht"
 	"github.com/PeernetOfficial/core/protocol"
+	"github.com/PeernetOfficial/core/webapi"
 	"github.com/btcsuite/btcd/btcec"
 )
 
@@ -37,6 +38,7 @@ func showHelp(output io.Writer) {
 		"debug watch searches          Watch all outgoing DHT searches\n"+
 		"debug watch incoming          Watch all incoming information requests\n"+
 		"debug watch                   Watch packets and info requests for hash\n"+
+		"probe file transfer           Attempts to transfer and validate a remote file against a local file\n"+
 		"hash                          Create blake3 hash of input\n"+
 		"warehouse get                 Get data from local warehouse by hash\n"+
 		"warehouse store               Store data into local warehouse\n"+
@@ -350,6 +352,45 @@ func userCommands(input io.Reader, output io.Writer, terminateSignal chan struct
 			} else {
 				fmt.Fprintf(output, "The hash was removed from the monitoring list.\n")
 			}
+
+		case "probe file transfer":
+			fmt.Fprintf(output, "Enter peer ID or node ID to connect:\n")
+			nodeIDA, _, terminate := getUserOptionString(reader, terminateSignal)
+			if terminate {
+				return
+			}
+			fmt.Fprintf(output, "Enter file hash:\n")
+			fileHashA, _, terminate := getUserOptionString(reader, terminateSignal)
+			if terminate {
+				return
+			}
+
+			fileHash, valid1 := webapi.DecodeBlake3Hash(fileHashA)
+			nodeID, valid2 := webapi.DecodeBlake3Hash(nodeIDA)
+			publicKey, err3 := core.PublicKeyFromPeerID(nodeIDA)
+
+			if !valid2 && err3 != nil {
+				fmt.Fprintf(output, "Invalid peer ID or node ID.\n")
+				break
+			} else if !valid1 {
+				fmt.Fprintf(output, "Invalid file hash.\n")
+			}
+
+			var peer *core.PeerInfo
+			var err error
+			timeout := time.Second * 10
+
+			if valid2 {
+				peer, err = webapi.PeerConnectNode(nodeID, timeout)
+			} else if err3 == nil {
+				peer, err = webapi.PeerConnectPublicKey(publicKey, timeout)
+			}
+			if err != nil {
+				fmt.Fprintf(output, "Could not connect to peer: %s\n", err.Error())
+				break
+			}
+
+			go transferCompareFile(peer, fileHash)
 		}
 	}
 }
