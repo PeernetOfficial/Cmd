@@ -38,7 +38,7 @@ func init() {
 			fmt.Printf("Error reading config file '%s': %s\n", configFile, err.Error())
 		case 2:
 			fmt.Printf("Error parsing config file '%s' (make sure it is valid YAML format): %s\n", configFile, err.Error())
-		case 3:
+		default:
 			fmt.Printf("Unknown error loading config file '%s': %s\n", configFile, err.Error())
 		}
 		os.Exit(1)
