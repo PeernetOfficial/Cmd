@@ -12,19 +12,18 @@ Download the [latest version of Go](https://golang.org/dl/). To build:
 go build
 ```
 
-To reduce the binary size provide the linker switch -s which will "Omit the symbol table and debug information". This reduced the Windows binary by 26% in a test.
+To reduce the binary size provide the linker switch `-s` which will "Omit the symbol table and debug information". This reduced the Windows binary by 26% in a test. The flag `-trimpath` removes "all file system paths from the resulting executable" which could be considered an information leak.
 
 ```
-go build -ldflags "-s"
+go build -trimpath -ldflags "-s"
 ```
 
 ### Windows Headless Version
 
-To build a headless version (like a typical Windows GUI application) that does not show the command line window use the following linker switch. The second example reduces the file size.
+To build a headless version (like a typical Windows GUI application) that does not show the command line window use the linker switch `-H=windowsgui`.
 
 ```
-go build -ldflags "-H=windowsgui"
-go build -ldflags "-H=windowsgui -s"
+go build -trimpath -ldflags "-H=windowsgui -s"
 ```
 
 ## Use
@@ -49,7 +48,7 @@ debug key self     List current Public-Private Key pair
 
 ## Web API
 
-The web API described in the [core library](https://github.com/PeernetOfficial/core/tree/master/webapi) is only available if the listen parameter is specified either via command line parameter or via the settings file.
+The web API described in the [core library](https://github.com/PeernetOfficial/core/tree/master/webapi#web-api) is only available if the listen parameter is specified either via command line parameter or via the settings file.
 
 As described in the linked specification, do not expose this API on the internet or local network, it allows sensitive operations such as deleting the private key and access to local files. It shall only be used by local clients on the same machine. Set the listen parameter only to a loopback IP address such as `::1`.
 
@@ -88,7 +87,7 @@ APITimeoutWrite:    "10m"               # The maximum duration before timing out
 
 ## API Functions
 
-All API functions provided by the core library are described [here](https://github.com/PeernetOfficial/core/tree/master/webapi).
+All API functions provided by the core library are described [here](https://github.com/PeernetOfficial/core/tree/master/webapi#available-functions).
 
 In addition, this application also provides these functions:
 
