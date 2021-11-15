@@ -31,22 +31,27 @@ var config struct {
 
 func init() {
 	if status, err := core.LoadConfigOut(configFile, &config); err != nil {
+		var exitCode int
 		switch status {
 		case 0:
+			exitCode = core.ExitErrorConfigAccess
 			fmt.Printf("Unknown error accessing config file '%s': %s\n", configFile, err.Error())
 		case 1:
+			exitCode = core.ExitErrorConfigRead
 			fmt.Printf("Error reading config file '%s': %s\n", configFile, err.Error())
 		case 2:
+			exitCode = core.ExitErrorConfigParse
 			fmt.Printf("Error parsing config file '%s' (make sure it is valid YAML format): %s\n", configFile, err.Error())
 		default:
+			exitCode = core.ExitErrorConfigAccess
 			fmt.Printf("Unknown error loading config file '%s': %s\n", configFile, err.Error())
 		}
-		os.Exit(1)
+		os.Exit(exitCode)
 	}
 
 	if err := core.InitLog(); err != nil {
 		fmt.Printf("Error opening log file: %s\n", err.Error())
-		os.Exit(1)
+		os.Exit(core.ExitErrorLogInit)
 	}
 
 	monitorKeys = make(map[string]struct{})

@@ -8,11 +8,15 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/PeernetOfficial/core"
 	"github.com/PeernetOfficial/core/webapi"
 	"github.com/gorilla/websocket"
 )
@@ -28,12 +32,25 @@ func startAPI() {
 	} else if len(config.APIListen) != 0 {
 		// API settings via config file.
 		webapi.Start(config.APIListen, config.APIUseSSL, config.APICertificateFile, config.APICertificateKey, parseDuration(config.APITimeoutRead), parseDuration(config.APITimeoutWrite))
-		return
 	} else {
 		return
 	}
 
 	webapi.Router.HandleFunc("/console", apiConsole).Methods("GET")
+	webapi.Router.HandleFunc("/shutdown", apiShutdown).Methods("GET")
+}
+
+// parseCmdParamWebapi parses a "-webapi=" command line parameter
+func parseCmdParamWebapi() (apiListen []string) {
+	var param string
+	flag.StringVar(&param, "webapi", "", "Specify the list of IP:Ports for the webapi to listen. Example: -webapi=127.0.0.1:1234")
+	flag.Parse()
+
+	if len(param) == 0 {
+		return nil
+	}
+
+	return strings.Split(param, ",")
 }
 
 // parseDuration is the same as time.ParseDuration without returning an error. Valid units are ms, s, m, h. For example "10s".
@@ -44,6 +61,7 @@ func parseDuration(input string) (result time.Duration) {
 
 /*
 apiConsole provides a websocket to send/receive internal commands
+
 Request:    GET /console
 Result:     200 with JSON structure apiResponsePeerSelf
 */
@@ -100,15 +118,53 @@ func apiConsole(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// parseCmdParamWebapi parses a "-webapi=" command line parameter
-func parseCmdParamWebapi() (apiListen []string) {
-	var param string
-	flag.StringVar(&param, "webapi", "", "Specify the list of IP:Ports for the webapi to listen. Example: -webapi=127.0.0.1:1234")
-	flag.Parse()
+/*
+apiShutdown gracefully shuts down the application. Actions: 0 = Shutdown.
 
-	if len(param) == 0 {
-		return nil
+Request:    GET /shutdown?action=[action]
+Result:     200 with JSON structure apiShutdownStatus
+*/
+func apiShutdown(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	action, err := strconv.Atoi(r.Form.Get("action"))
+	if err != nil || action != 0 {
+		http.Error(w, "", http.StatusBadRequest)
+		return
 	}
 
-	return strings.Split(param, ",")
+	if action == 0 {
+		// Later: Initiate shutdown signal to core library and wait for all requests to complete.
+
+		core.Filters.LogError("apiShutdown", "Graceful shutdown via API requested from '%s'\n", r.RemoteAddr)
+
+		EncodeJSONFlush(w, r, &apiShutdownStatus{Status: 0})
+
+		os.Exit(core.ExitGraceful)
+	}
+}
+
+type apiShutdownStatus struct {
+	Status int `json:"status"` // Status of the API call. 0 = Success.
+}
+
+// EncodeJSONFlush encodes the data as JSON and flushes the writer. It sets the Content-Length header so no subsequent writes should be made.
+func EncodeJSONFlush(w http.ResponseWriter, r *http.Request, data interface{}) (err error) {
+	response, err := json.Marshal(data)
+	if err != nil {
+		core.Filters.LogError("EncodeJSONFlush", "Error marshalling data for route '%s': %v\n", r.URL.Path, err)
+		return err
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Length", strconv.Itoa(len(response)))
+	w.WriteHeader(http.StatusOK)
+
+	_, err = w.Write(response)
+
+	// Flushing the buffer immediately is needed in case the application exits immediately after this call.
+	if f, ok := w.(http.Flusher); ok {
+		f.Flush()
+	}
+
+	return
 }
