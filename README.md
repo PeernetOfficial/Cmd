@@ -18,6 +18,15 @@ To reduce the binary size provide the linker switch -s which will "Omit the symb
 go build -ldflags "-s"
 ```
 
+### Windows Headless Version
+
+To build a headless version (like a typical Windows GUI application) that does not show the command line window use the following linker switch. The second example reduces the file size.
+
+```
+go build -ldflags "-H=windowsgui"
+go build -ldflags "-H=windowsgui -s"
+```
+
 ## Use
 
 The config filename is hard-coded to `Config.yaml` and is created on the first run. Please see the core library for individual settings to change.
@@ -75,6 +84,53 @@ APICertificateKey:  "certificate.key"   # Private Key
 # optional timeouts
 APITimeoutRead:     "10m"               # The maximum duration for reading the entire request, including the body. In this example 10 minutes.
 APITimeoutWrite:    "10m"               # The maximum duration before timing out writes of the response. This includes processing time and is therefore the max time any HTTP function may take.
+```
+
+## API Functions
+
+All API functions provided by the core library are described [here](https://github.com/PeernetOfficial/core/tree/master/webapi).
+
+In addition, this application also provides these functions:
+
+```
+/console                        Websocket to send/receive internal commands
+/shutdown                       Graceful shutdown
+```
+
+### Console
+
+This provides a websocket to send/receive internal commands in the same way provided via the command line interface. The websocket messages sent to the API are the input texts from the end-user, and the messages received from the API are the text outputs.
+
+This can be useful as internal debug interface in clients.
+
+```
+Request:    GET /console
+Result:     Upgrade to websocket. The websocket message are texts to read/write.
+```
+
+### Shutdown
+
+This gracefully shuts down the application. Actions: 0 = Shutdown.
+
+```
+Request:    GET /shutdown?action=[action]
+Result:     200 with JSON structure apiShutdownStatus
+```
+
+```go
+type apiShutdownStatus struct {
+	Status int `json:"status"` // Status of the API call. 0 = Success.
+}
+```
+
+Example request: `http://127.0.0.1:112/shutdown?action=0`
+
+Example response:
+
+```json
+{
+    "status": 0
+}
 ```
 
 ## Error Handling

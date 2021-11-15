@@ -60,10 +60,10 @@ func parseDuration(input string) (result time.Duration) {
 }
 
 /*
-apiConsole provides a websocket to send/receive internal commands
+apiConsole provides a websocket to send/receive internal commands.
 
 Request:    GET /console
-Result:     200 with JSON structure apiResponsePeerSelf
+Result:     Upgrade to websocket. The websocket message are texts to read/write.
 */
 func apiConsole(w http.ResponseWriter, r *http.Request) {
 	c, err := webapi.WSUpgrader.Upgrade(w, r, nil)
