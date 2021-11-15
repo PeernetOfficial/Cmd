@@ -6,10 +6,16 @@ This client can be used as root peer to help speed up discovery of peers and dat
 
 ## Compile
 
-To build:
+Download the [latest version of Go](https://golang.org/dl/). To build:
 
 ```
 go build
+```
+
+To reduce the binary size provide the linker switch -s which will "Omit the symbol table and debug information". This reduced the Windows binary by 26% in a test.
+
+```
+go build -ldflags "-s"
 ```
 
 ## Use
@@ -70,3 +76,21 @@ APICertificateKey:  "certificate.key"   # Private Key
 APITimeoutRead:     "10m"               # The maximum duration for reading the entire request, including the body. In this example 10 minutes.
 APITimeoutWrite:    "10m"               # The maximum duration before timing out writes of the response. This includes processing time and is therefore the max time any HTTP function may take.
 ```
+
+## Error Handling
+
+The application exits in case of the errors listed below and uses the specified exit code. Applications that launch this application can monitor for those exit codes. End users should look into the log file for additional information in case any of these errors occur, although some of them are pre log file initialization.
+
+| Exit Code  | Constant               | Info                                                |
+| ---------- | ---------------------- | --------------------------------------------------- |
+| 0          | ExitSuccess            | This is actually never used.                        |
+| 1          | ExitErrorConfigAccess  | Error accessing the config file.                    |
+| 2          | ExitErrorConfigRead    | Error reading the config file.                      |
+| 3          | ExitErrorConfigParse   | Error parsing the config file.                      |
+| 4          | ExitErrorLogInit       | Error initializing log file.                        |
+| 5          | ExitParamWebapiInvalid | Parameter for webapi is invalid.                    |
+| 6          | ExitPrivateKeyCorrupt  | Private key is corrupt.                             |
+| 7          | ExitPrivateKeyCreate   | Cannot create a new private key.                    |
+| 8          | ExitBlockchainCorrupt  | Blockchain is corrupt.                              |
+| 9          | ExitGraceful           | Graceful shutdown.                                  |
+| 0xC000013A | STATUS_CONTROL_C_EXIT  | The application terminated as a result of a CTRL+C. |
