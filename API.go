@@ -18,20 +18,21 @@ import (
 
 	"github.com/PeernetOfficial/core"
 	"github.com/PeernetOfficial/core/webapi"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
 // startAPI starts the API if enabled via command line parameter or if the settings are set in the config file.
 // Using the command line option always ignores any API settings from the config (including timeout settings).
 func startAPI() {
-	if apiListen := parseCmdParamWebapi(); len(apiListen) > 0 {
+	if apiListen, apiKey := parseCmdParamWebapi(); len(apiListen) > 0 {
 		// API listen parameter via command line argument.
 		// Note that read and write timeouts are set to 0 which means they are not used. SSL is not enabled.
-		webapi.Start(apiListen, false, "", "", 0, 0)
+		webapi.Start(apiListen, false, "", "", 0, 0, apiKey)
 
 	} else if len(config.APIListen) != 0 {
 		// API settings via config file.
-		webapi.Start(config.APIListen, config.APIUseSSL, config.APICertificateFile, config.APICertificateKey, parseDuration(config.APITimeoutRead), parseDuration(config.APITimeoutWrite))
+		webapi.Start(config.APIListen, config.APIUseSSL, config.APICertificateFile, config.APICertificateKey, parseDuration(config.APITimeoutRead), parseDuration(config.APITimeoutWrite), config.APIKey)
 	} else {
 		return
 	}
@@ -40,17 +41,25 @@ func startAPI() {
 	webapi.Router.HandleFunc("/shutdown", apiShutdown).Methods("GET")
 }
 
-// parseCmdParamWebapi parses a "-webapi=" command line parameter
-func parseCmdParamWebapi() (apiListen []string) {
-	var param string
-	flag.StringVar(&param, "webapi", "", "Specify the list of IP:Ports for the webapi to listen. Example: -webapi=127.0.0.1:1234")
+// parseCmdParamWebapi parses the "-webapi=" and "-apikey" command line parameters. The API key is optional (for now) and set to 00000000-0000-0000-0000-000000000000 if none is provided.
+func parseCmdParamWebapi() (apiListen []string, apiKey uuid.UUID) {
+	var paramWebapi, paramWebKeyA string
+	flag.StringVar(&paramWebapi, "webapi", "", "Specify the list of IP:Ports for the webapi to listen. Example: -webapi=127.0.0.1:1234")
+	flag.StringVar(&paramWebKeyA, "apikey", "", "Specify the API key to use. Must be a UUID.")
 	flag.Parse()
 
-	if len(param) == 0 {
-		return nil
+	if len(paramWebapi) == 0 {
+		return nil, apiKey
 	}
 
-	return strings.Split(param, ",")
+	if len(paramWebKeyA) != 0 {
+		var err error
+		if apiKey, err = uuid.Parse(paramWebKeyA); err != nil {
+			os.Exit(core.ExitParamApiKeyInvalid)
+		}
+	}
+
+	return strings.Split(paramWebapi, ","), apiKey
 }
 
 // parseDuration is the same as time.ParseDuration without returning an error. Valid units are ms, s, m, h. For example "10s".

@@ -52,18 +52,20 @@ The web API described in the [core library](https://github.com/PeernetOfficial/c
 
 As described in the linked specification, do not expose this API on the internet or local network, it allows sensitive operations such as deleting the private key and access to local files. It shall only be used by local clients on the same machine. Set the listen parameter only to a loopback IP address such as `::1`.
 
+API key authentication enforces the `x-api-key` header in each API request.
+
 ### Option 1: Command Line Parameter
 
-Specify the `webapi` parameter with an IP:Port to listen:
+Specify the `webapi` parameter with an IP:Port to listen and a random API key (UUID) in `apikey`:
 
 ```
-Cmd -webapi=[::1]:1234
+Cmd -webapi=[::1]:1234 -apikey=a30c01eb-856c-4b79-bdde-3c56a248f71b
 ```
 
 Multiple addresses can be specified by separating them with a comma:
 
 ```
-Cmd -webapi=127.0.0.1:1337,[::1]:1234
+Cmd -webapi=127.0.0.1:1337,[::1]:1234 -apikey=a30c01eb-856c-4b79-bdde-3c56a248f71b
 ```
 
 Note that the command line parameter does not support the SSL and timeout settings. The API settings in the config file are ignored in case the command line parameter is specified.
@@ -72,8 +74,11 @@ Note that the command line parameter does not support the SSL and timeout settin
 
 In the `Config.yaml` specify the below line. The `APIListen` is a list of IP:Port pairs. IPv4 and IPv6 are supported. The SSL and timeout settings are optional. If the timeouts are not specified, they are not used. Valid units for the timeout settings are ms, s, m, h.
 
+API key authentication can be disabled by specifying a null UUID (= `00000000-0000-0000-0000-000000000000`) in the config which may be useful for development purposes, but should never be disabled in production.
+
 ```yaml
-APIListen: ["127.0.0.1:112","[::1]:112"]
+APIListen:          ["127.0.0.1:112","[::1]:112"]
+APIKey:             "a30c01eb-856c-4b79-bdde-3c56a248f71b"
 
 # optional enable SSL
 APIUseSSL:          true
