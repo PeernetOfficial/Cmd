@@ -28,8 +28,6 @@ go build -trimpath -ldflags "-H=windowsgui -s"
 
 ## Use
 
-The config filename is hard-coded to `Config.yaml` and is created on the first run. Please see the core library for individual settings to change.
-
 Simply start it and then use the listed commands:
 
 ```
@@ -44,6 +42,19 @@ chat               Send text to all peers
 peer list          List current peers
 debug key create   Create Public-Private Key pair
 debug key self     List current Public-Private Key pair
+```
+
+## Config
+
+The config filename is hard-coded to `Config.yaml` and is created on the first run. Please see the [core library](https://github.com/PeernetOfficial/core#configuration) for individual settings to change.
+
+The config contains the locations of important files and folders.
+
+```yaml
+LogFile:          "data/log.txt"                # Log file. It contains informational and error messages.
+BlockchainMain:   "data/blockchain main/"       # Blockchain main stores the end-users blockchain data. It contains meta data of shared files, profile data, and social interactions.
+BlockchainGlobal: "data/blockchain global/"     # Blockchain global stores blockchain data from global users.
+WarehouseMain:    "data/warehouse main/"        # Warehouse main stores the actual data of files shared by the end-user.
 ```
 
 ## Web API
@@ -153,6 +164,7 @@ The application exits in case of the errors listed below and uses the specified 
 | 7          | ExitPrivateKeyCreate   | Cannot create a new private key.                    |
 | 8          | ExitBlockchainCorrupt  | Blockchain is corrupt.                              |
 | 9          | ExitGraceful           | Graceful shutdown.                                  |
+| 10         | ExitParamApiKeyInvalid | API key parameter is invalid.                       |
 | 0xC000013A | STATUS_CONTROL_C_EXIT  | The application terminated as a result of a CTRL+C. |
 
 ## Windows User Privileges
