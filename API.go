@@ -24,8 +24,8 @@ import (
 
 // startAPI starts the API if enabled via command line parameter or if the settings are set in the config file.
 // Using the command line option always ignores any API settings from the config (including timeout settings).
-func startAPI() {
-	if apiListen, apiKey := parseCmdParamWebapi(); len(apiListen) > 0 {
+func startAPI(apiListen []string, apiKey uuid.UUID) {
+	if len(apiListen) > 0 {
 		// API listen parameter via command line argument.
 		// Note that read and write timeouts are set to 0 which means they are not used. SSL is not enabled.
 		webapi.Start(apiListen, false, "", "", 0, 0, apiKey)
@@ -41,15 +41,18 @@ func startAPI() {
 	webapi.Router.HandleFunc("/shutdown", apiShutdown).Methods("GET")
 }
 
-// parseCmdParamWebapi parses the "-webapi=" and "-apikey" command line parameters. The API key is optional (for now) and set to 00000000-0000-0000-0000-000000000000 if none is provided.
-func parseCmdParamWebapi() (apiListen []string, apiKey uuid.UUID) {
+// parseCmdParams parses the "-webapi", "-apikey", and "-watchpid" command line parameters.
+// The API key is optional (for now) and set to 00000000-0000-0000-0000-000000000000 if none is provided.
+// The watch PID is set to 0 if not provided.
+func parseCmdParams() (apiListen []string, apiKey uuid.UUID, watchPID int) {
 	var paramWebapi, paramWebKeyA string
 	flag.StringVar(&paramWebapi, "webapi", "", "Specify the list of IP:Ports for the webapi to listen. Example: -webapi=127.0.0.1:1234")
 	flag.StringVar(&paramWebKeyA, "apikey", "", "Specify the API key to use. Must be a UUID.")
+	flag.IntVar(&watchPID, "watchpid", 0, "Monitor the specified process ID for exit to exit this application")
 	flag.Parse()
 
 	if len(paramWebapi) == 0 {
-		return nil, apiKey
+		return nil, apiKey, watchPID
 	}
 
 	if len(paramWebKeyA) != 0 {
@@ -59,7 +62,7 @@ func parseCmdParamWebapi() (apiListen []string, apiKey uuid.UUID) {
 		}
 	}
 
-	return strings.Split(paramWebapi, ","), apiKey
+	return strings.Split(paramWebapi, ","), apiKey, watchPID
 }
 
 // parseDuration is the same as time.ParseDuration without returning an error. Valid units are ms, s, m, h. For example "10s".
@@ -144,7 +147,7 @@ func apiShutdown(w http.ResponseWriter, r *http.Request) {
 	if action == 0 {
 		// Later: Initiate shutdown signal to core library and wait for all requests to complete.
 
-		core.Filters.LogError("apiShutdown", "Graceful shutdown via API requested from '%s'\n", r.RemoteAddr)
+		core.Filters.LogError("apiShutdown", "graceful shutdown via API requested from '%s'\n", r.RemoteAddr)
 
 		EncodeJSONFlush(w, r, &apiShutdownStatus{Status: 0})
 
@@ -160,7 +163,7 @@ type apiShutdownStatus struct {
 func EncodeJSONFlush(w http.ResponseWriter, r *http.Request, data interface{}) (err error) {
 	response, err := json.Marshal(data)
 	if err != nil {
-		core.Filters.LogError("EncodeJSONFlush", "Error marshalling data for route '%s': %v\n", r.URL.Path, err)
+		core.Filters.LogError("EncodeJSONFlush", "error marshalling data for route '%s': %v\n", r.URL.Path, err)
 		return err
 	}
 
@@ -176,4 +179,30 @@ func EncodeJSONFlush(w http.ResponseWriter, r *http.Request, data interface{}) (
 	}
 
 	return
+}
+
+// processExitMonitor monitors for a shutdown of a process based on its process ID (PID) and shuts down the application.
+// It uses the command line parameter "-watchpid=[PID]".
+// This can be useful to automatically shut down the application in case the frontend shuts down unexpectedly.
+// Graceful shutdown should be initiated via the /shutdown API.
+func processExitMonitor(watchPID int) {
+	if watchPID == 0 {
+		return
+	}
+
+	// monitor the process
+	process, err := os.FindProcess(watchPID)
+	if err != nil {
+		core.Filters.LogError("processExitMonitor", "error finding monitored process ID %d: %v\n", watchPID, err)
+		return
+	}
+
+	_, err = process.Wait()
+	if err == nil {
+		core.Filters.LogError("processExitMonitor", "graceful shutdown via exit signal from process ID %d\n", watchPID)
+
+		// Later: Initiate shutdown signal to core library and wait for all requests to complete.
+
+		os.Exit(core.ExitGraceful)
+	}
 }

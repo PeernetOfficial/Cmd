@@ -74,7 +74,10 @@ func init() {
 }
 
 func main() {
-	startAPI()
+	apiListen, apiKey, watchPID := parseCmdParams()
+	startAPI(apiListen, apiKey)
+
+	go processExitMonitor(watchPID)
 
 	core.Connect()
 
