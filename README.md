@@ -211,3 +211,15 @@ Expert user may manually edit the network listen config settings. Beware that in
 * Static public IP assigned to your network adapter (usually only servers): Set the `Listen` to the fixed public IP:Port. `EnableUPnP` must be false and `PortForward` must be 0.
 * Dynamic public IP in home network but manual port forwarding on your router: Set `Listen` to your internal IP:Port from your network adapter that provides the connection to your router. Set `PortForward` to the external port. `EnableUPnP` must be false.
 * For any other case, don't touch the default config!
+
+## Integration as Backend
+
+This application can be used as backend for a Peernet client.
+
+### Process Exit Monitor
+
+Use the parameter `-watchpid=[PID]` to specify a process ID to monitor for exit to automatically exit the application.
+
+```
+Cmd -watchpid=1234
+```
