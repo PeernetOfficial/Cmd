@@ -44,13 +44,20 @@ func debugCmdConnect(nodeID []byte) {
 		fmt.Printf("* Successfully discovered via DHT.\n")
 	}
 
+	fmt.Printf("* Peer details:\n")
+	fmt.Printf("  Uncontacted:      %t\n", peer.IsVirtual())
+	fmt.Printf("  Root peer:        %t\n", peer.IsRootPeer)
+	fmt.Printf("  User Agent:       %s\n", peer.UserAgent)
+	fmt.Printf("  Firewall:         %t\n", peer.IsFirewallReported())
+
 	// virtual peer?
 	if peer.IsVirtual() {
-		fmt.Printf("* Peer is virtual and was not contacted before. It will show no active connections until contacted.\n")
+		fmt.Printf("* Peer is virtual and was not contacted before. Sending out ping.\n")
+		peer.Ping()
+	} else {
+		fmt.Printf("* Connections:\n")
+		fmt.Printf("%s", textPeerConnections(peer))
 	}
-
-	fmt.Printf("* Peer details:\n")
-	fmt.Printf("%s", textPeerConnections(peer))
 
 	// ping via all connections TODO
 	//fmt.Printf("* Sending ping:\n")
