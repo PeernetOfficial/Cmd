@@ -121,6 +121,12 @@ func userCommands(input io.Reader, output io.Writer, terminateSignal chan struct
 				}
 				features += "IPv6"
 			}
+			if featureSupport&(1<<protocol.FeatureFirewall) > 0 {
+				if len(features) > 0 {
+					features += ", "
+				}
+				features += "Firewall Reported"
+			}
 
 			fmt.Fprintf(output, "User Agent: %s\nFeatures:   %s\n\n", core.SelfUserAgent(), features)
 
@@ -181,6 +187,9 @@ func userCommands(input io.Reader, output io.Writer, terminateSignal chan struct
 				}
 				if peer.IsBehindNAT() {
 					flagsA += "N"
+				}
+				if peer.IsFirewallReported() {
+					flagsA += "F"
 				}
 				fmt.Fprintf(output, "%-66s  %-8d  %-8d  %-35s  %-6s  %-6s\n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()), peer.StatsPacketSent, peer.StatsPacketReceived, addressA, flagsA, rttA)
 			}
