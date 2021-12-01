@@ -26,6 +26,14 @@ To build a headless version (like a typical Windows GUI application) that does n
 go build -trimpath -ldflags "-H=windowsgui -s"
 ```
 
+### Code Signing
+
+In order to sign the executable use the `signtool` that is part of the [Windows SDK](https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/). The exact path to the tool may differ based on the SDK version, but it is something like `C:\Program Files (x86)\Windows Kits\10\bin\10.0.22000.0\x64\signtool`.
+
+```
+signtool sign /a /fd SHA256 Cmd.exe
+```
+
 ## Use
 
 Simply start it and then use the listed commands:
