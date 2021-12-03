@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/PeernetOfficial/core"
+	"github.com/PeernetOfficial/core/protocol"
 	"github.com/PeernetOfficial/core/udt"
 	"github.com/PeernetOfficial/core/warehouse"
 )
@@ -47,7 +48,7 @@ func transferCompareFile(peer *core.PeerInfo, fileHash []byte) {
 
 	fmt.Printf("2. Opened UDT connection for file: %s\n", hex.EncodeToString(fileHash))
 
-	fileSize, transferSize, err := core.FileTransferReadHeaderUDT(udtConn)
+	fileSize, transferSize, err := protocol.FileTransferReadHeader(udtConn)
 	if err != nil {
 		fmt.Printf("Error reading file transfer header: %s\n", err)
 		return
