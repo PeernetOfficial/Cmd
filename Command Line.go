@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -46,6 +47,7 @@ func showHelp(output io.Writer) {
 		"dht store                     Store data into DHT\n"+
 		"get block                     Get block from remote peer\n"+
 		"log error                     Set error log output\n"+
+		"exit                          Exit\n"+
 		"\n")
 }
 
@@ -440,6 +442,9 @@ func userCommands(input io.Reader, output io.Writer, terminateSignal chan struct
 
 			go blockTransfer(peer, uint64(blockNumber))
 
+		case "exit":
+			core.Filters.LogError("userCommands", "graceful exit via user terminal command\n")
+			os.Exit(core.ExitGraceful)
 		}
 	}
 }
