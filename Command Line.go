@@ -48,6 +48,7 @@ func showHelp(output io.Writer) {
 		"get block                     Get block from remote peer\n"+
 		"log error                     Set error log output\n"+
 		"exit                          Exit\n"+
+		"search file                   Search globally for files using the local search index\n"+
 		"\n")
 }
 
@@ -445,6 +446,32 @@ func userCommands(input io.Reader, output io.Writer, terminateSignal chan struct
 		case "exit":
 			core.Filters.LogError("userCommands", "graceful exit via user terminal command\n")
 			os.Exit(core.ExitGraceful)
+
+		case "search file":
+			text, _, terminate := getUserOptionString(reader, terminateSignal)
+			if terminate {
+				return
+			}
+
+			results := backend.SearchIndex.Search(text)
+			if len(results) == 0 {
+				fmt.Printf("No results found.\n")
+				break
+			}
+
+			for _, result := range results {
+				fmt.Printf("- File ID               %s\n", result.FileID.String())
+				fmt.Printf("  Public Key            %s\n", hex.EncodeToString(result.PublicKey.SerializeCompressed()))
+				fmt.Printf("  Block Number          %d\n", result.BlockNumber)
+				keywords := ""
+				for n, selector := range result.Selectors {
+					if n > 0 {
+						keywords += ", "
+					}
+					keywords += selector.Word
+				}
+				fmt.Printf("  Found via keywords    %s\n", keywords)
+			}
 		}
 	}
 }

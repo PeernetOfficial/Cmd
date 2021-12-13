@@ -70,12 +70,14 @@ func init() {
 
 	userAgent := appName + "/" + core.Version
 
-	core.Init(userAgent)
+	backend = core.Init(userAgent)
 }
+
+var backend *core.Backend
 
 func main() {
 	apiListen, apiKey, watchPID := parseCmdParams()
-	startAPI(apiListen, apiKey)
+	startAPI(backend, apiListen, apiKey)
 
 	go processExitMonitor(watchPID)
 

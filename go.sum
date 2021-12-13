@@ -1,5 +1,5 @@
-github.com/PeernetOfficial/core v0.0.0-20211211194338-c12b68c35cb8 h1:pzgjxUhS8+FlsOlETO57N9oUb4/+pPOWpxVj+NAAONo=
-github.com/PeernetOfficial/core v0.0.0-20211211194338-c12b68c35cb8/go.mod h1:tRL13e2o4/h55LDd+aM9QoGukc+3L3Zy0yK8jAh+PsE=
+github.com/PeernetOfficial/core v0.0.0-20211213031602-388343dc3eb3 h1:DH1Q3pNE0cODEptmQRAUErTsrTdIK2Mifa/3b6bxWtk=
+github.com/PeernetOfficial/core v0.0.0-20211213031602-388343dc3eb3/go.mod h1:tRL13e2o4/h55LDd+aM9QoGukc+3L3Zy0yK8jAh+PsE=
 github.com/akrylysov/pogreb v0.10.1 h1:FqlR8VR7uCbJdfUob916tPM+idpKgeESDXOA1K0DK4w=
 github.com/akrylysov/pogreb v0.10.1/go.mod h1:pNs6QmpQ1UlTJKDezuRWmaqkgUE2TuU0YTWyqJZ7+lI=
 github.com/enfipy/locker v1.1.0 h1:2zVJ0ky7cS1Vjs0x6OQWFiT2dSEiHrI5/O2KCz1fgGc=
