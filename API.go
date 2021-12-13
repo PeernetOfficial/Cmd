@@ -39,6 +39,7 @@ func startAPI(backend *core.Backend, apiListen []string, apiKey uuid.UUID) {
 		return
 	}
 
+	api.AllowKeyInParam = append(api.AllowKeyInParam, "/console")
 	api.Router.HandleFunc("/console", apiConsole).Methods("GET")
 	api.Router.HandleFunc("/shutdown", apiShutdown).Methods("GET")
 }
