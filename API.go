@@ -24,21 +24,23 @@ import (
 
 // startAPI starts the API if enabled via command line parameter or if the settings are set in the config file.
 // Using the command line option always ignores any API settings from the config (including timeout settings).
-func startAPI(apiListen []string, apiKey uuid.UUID) {
+func startAPI(backend *core.Backend, apiListen []string, apiKey uuid.UUID) {
+	var api *webapi.WebapiInstance
+
 	if len(apiListen) > 0 {
 		// API listen parameter via command line argument.
 		// Note that read and write timeouts are set to 0 which means they are not used. SSL is not enabled.
-		webapi.Start(apiListen, false, "", "", 0, 0, apiKey)
+		api = webapi.Start(backend, apiListen, false, "", "", 0, 0, apiKey)
 
 	} else if len(config.APIListen) != 0 {
 		// API settings via config file.
-		webapi.Start(config.APIListen, config.APIUseSSL, config.APICertificateFile, config.APICertificateKey, parseDuration(config.APITimeoutRead), parseDuration(config.APITimeoutWrite), config.APIKey)
+		api = webapi.Start(backend, config.APIListen, config.APIUseSSL, config.APICertificateFile, config.APICertificateKey, parseDuration(config.APITimeoutRead), parseDuration(config.APITimeoutWrite), config.APIKey)
 	} else {
 		return
 	}
 
-	webapi.Router.HandleFunc("/console", apiConsole).Methods("GET")
-	webapi.Router.HandleFunc("/shutdown", apiShutdown).Methods("GET")
+	api.Router.HandleFunc("/console", apiConsole).Methods("GET")
+	api.Router.HandleFunc("/shutdown", apiShutdown).Methods("GET")
 }
 
 // parseCmdParams parses the "-webapi", "-apikey", and "-watchpid" command line parameters.
