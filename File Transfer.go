@@ -162,14 +162,16 @@ func translateTerminateReason(reason int) string {
 		return "Socket: The connection timed out when sending the initial handshake."
 	case udt.TerminateReasonRemoteSentShutdown:
 		return "Remote peer sent a shutdown message."
-	case udt.TerminateReasonCannotProcessOutgoing:
-		return "Send: Cannot process outgoing messages."
+	case udt.TerminateReasonSocketClosed:
+		return "Send: Socket closed. Called udtSocket.Close()."
 	case udt.TerminateReasonInvalidPacketIDAck:
 		return "Send: Invalid packet ID received in ACK message."
 	case udt.TerminateReasonInvalidPacketIDNak:
 		return "Send: Invalid packet ID received in NAK message."
 	case udt.TerminateReasonCorruptPacketNak:
 		return "Send: Invalid NAK packet received."
+	case udt.TerminateReasonSignal:
+		return "Send: Terminate signal. Called udtSocket.Terminate()."
 	default:
 		return "Unknown."
 	}

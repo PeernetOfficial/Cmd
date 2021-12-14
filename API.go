@@ -39,6 +39,8 @@ func startAPI(backend *core.Backend, apiListen []string, apiKey uuid.UUID) {
 		return
 	}
 
+	api.InitGeoIPDatabase(config.GeoIPDatabase)
+
 	api.AllowKeyInParam = append(api.AllowKeyInParam, "/console")
 	api.Router.HandleFunc("/console", apiConsole).Methods("GET")
 	api.Router.HandleFunc("/shutdown", apiShutdown).Methods("GET")

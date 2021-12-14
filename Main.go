@@ -19,7 +19,8 @@ const appName = "Peernet Cmd"
 
 var config struct {
 	// Log settings
-	ErrorOutput int `yaml:"ErrorOutput"` // 0 = Log file (default),  1 = Command line, 2 = Log file + command line, 3 = None
+	ErrorOutput   int    `yaml:"ErrorOutput"`   // 0 = Log file (default),  1 = Command line, 2 = Log file + command line, 3 = None
+	GeoIPDatabase string `yaml:"GeoIPDatabase"` // GeoLite2 City database to provide GeoIP information.
 
 	// API settings
 	APIListen          []string  `yaml:"APIListen"`          // WebListen is in format IP:Port and declares where the web-interface should listen on. IP can also be ommitted to listen on any.
