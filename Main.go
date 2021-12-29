@@ -19,8 +19,7 @@ const appName = "Peernet Cmd"
 
 var config struct {
 	// Log settings
-	ErrorOutput   int    `yaml:"ErrorOutput"`   // 0 = Log file (default),  1 = Command line, 2 = Log file + command line, 3 = None
-	GeoIPDatabase string `yaml:"GeoIPDatabase"` // GeoLite2 City database to provide GeoIP information.
+	ErrorOutput int `yaml:"ErrorOutput"` // 0 = Log file (default),  1 = Command line, 2 = Log file + command line, 3 = None
 
 	// API settings
 	APIListen          []string  `yaml:"APIListen"`          // WebListen is in format IP:Port and declares where the web-interface should listen on. IP can also be ommitted to listen on any.
@@ -33,56 +32,62 @@ var config struct {
 }
 
 func init() {
-	if status, err := core.LoadConfigOut(configFile, &config); err != nil {
-		var exitCode int
+	if status, err := core.LoadConfig(configFile, &config); status != core.ExitSuccess {
 		switch status {
-		case 0:
-			exitCode = core.ExitErrorConfigAccess
+		case core.ExitErrorConfigAccess:
 			fmt.Printf("Unknown error accessing config file '%s': %s\n", configFile, err.Error())
-		case 1:
-			exitCode = core.ExitErrorConfigRead
+		case core.ExitErrorConfigRead:
 			fmt.Printf("Error reading config file '%s': %s\n", configFile, err.Error())
-		case 2:
-			exitCode = core.ExitErrorConfigParse
+		case core.ExitErrorConfigParse:
 			fmt.Printf("Error parsing config file '%s' (make sure it is valid YAML format): %s\n", configFile, err.Error())
 		default:
-			exitCode = core.ExitErrorConfigAccess
 			fmt.Printf("Unknown error loading config file '%s': %s\n", configFile, err.Error())
 		}
-		os.Exit(exitCode)
-	}
-
-	if err := core.InitLog(); err != nil {
-		fmt.Printf("Error opening log file: %s\n", err.Error())
-		os.Exit(core.ExitErrorLogInit)
+		os.Exit(status)
 	}
 
 	monitorKeys = make(map[string]struct{})
-
-	core.Filters.LogError = logError
-	core.Filters.DHTSearchStatus = filterSearchStatus
-	core.Filters.IncomingRequest = filterIncomingRequest
-	core.Filters.MessageIn = filterMessageIn
-	core.Filters.MessageOutAnnouncement = filterMessageOutAnnouncement
-	core.Filters.MessageOutResponse = filterMessageOutResponse
-	core.Filters.MessageOutTraverse = filterMessageOutTraverse
-	core.Filters.MessageOutPing = filterMessageOutPing
-	core.Filters.MessageOutPong = filterMessageOutPong
-
-	userAgent := appName + "/" + core.Version
-
-	backend = core.Init(userAgent)
 }
 
-var backend *core.Backend
-
 func main() {
+	userAgent := appName + "/" + core.Version
+
+	filters := &core.Filters{
+		LogError:               logError,
+		DHTSearchStatus:        filterSearchStatus,
+		IncomingRequest:        filterIncomingRequest,
+		MessageIn:              filterMessageIn,
+		MessageOutAnnouncement: filterMessageOutAnnouncement,
+		MessageOutResponse:     filterMessageOutResponse,
+		MessageOutTraverse:     filterMessageOutTraverse,
+		MessageOutPing:         filterMessageOutPing,
+		MessageOutPong:         filterMessageOutPong,
+	}
+
+	backend, status, err := core.Init(userAgent, configFile, filters)
+
+	if status != core.ExitSuccess {
+		switch status {
+		case core.ExitErrorConfigAccess:
+			fmt.Printf("Unknown error accessing config file '%s': %s\n", configFile, err.Error())
+		case core.ExitErrorConfigRead:
+			fmt.Printf("Error reading config file '%s': %s\n", configFile, err.Error())
+		case core.ExitErrorConfigParse:
+			fmt.Printf("Error parsing config file '%s' (make sure it is valid YAML format): %s\n", configFile, err.Error())
+		case core.ExitErrorLogInit:
+			fmt.Printf("Error opening log file '%s': %s\n", backend.Config.LogFile, err.Error())
+		default:
+			fmt.Printf("Unknown error %d initializing backend: %s\n", status, err.Error())
+		}
+		os.Exit(status)
+	}
+
 	apiListen, apiKey, watchPID := parseCmdParams()
 	startAPI(backend, apiListen, apiKey)
 
-	go processExitMonitor(watchPID)
+	go processExitMonitor(backend, watchPID)
 
-	core.Connect()
+	backend.Connect()
 
-	userCommands(os.Stdin, os.Stdout, nil)
+	userCommands(backend, os.Stdin, os.Stdout, nil)
 }

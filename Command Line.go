@@ -52,7 +52,7 @@ func showHelp(output io.Writer) {
 		"\n")
 }
 
-func userCommands(input io.Reader, output io.Writer, terminateSignal chan struct{}) {
+func userCommands(backend *core.Backend, input io.Reader, output io.Writer, terminateSignal chan struct{}) {
 	reader := bufio.NewReader(input)
 
 	fmt.Fprint(output, appName+" "+core.Version+"\n------------------------------\n")
@@ -84,12 +84,12 @@ func userCommands(input io.Reader, output io.Writer, terminateSignal chan struct
 			fmt.Fprintf(output, "Public Key:  %s\n", hex.EncodeToString(publicKey.SerializeCompressed()))
 
 		case "debug key self":
-			privateKey, publicKey := core.ExportPrivateKey()
+			privateKey, publicKey := backend.ExportPrivateKey()
 			fmt.Fprintf(output, "Private Key: %s\n", hex.EncodeToString(privateKey.Serialize()))
 			fmt.Fprintf(output, "Public Key:  %s\n", hex.EncodeToString(publicKey.SerializeCompressed()))
 
 		case "peer list":
-			for _, peer := range GetPeerlistSorted() {
+			for _, peer := range GetPeerlistSorted(backend) {
 				info := ""
 				if peer.IsRootPeer {
 					info = " [root peer]"
@@ -104,18 +104,18 @@ func userCommands(input io.Reader, output io.Writer, terminateSignal chan struct
 
 		case "chat all", "chat":
 			if text, valid, terminate := getUserOptionString(reader, terminateSignal); valid {
-				core.SendChatAll(text)
+				backend.SendChatAll(text)
 			} else if terminate {
 				return
 			}
 
 		case "status":
-			_, publicKey := core.ExportPrivateKey()
-			nodeID := core.SelfNodeID()
+			_, publicKey := backend.ExportPrivateKey()
+			nodeID := backend.SelfNodeID()
 			fmt.Fprintf(output, "----------------\nPublic Key: %s\nNode ID:    %s\n\n", hex.EncodeToString(publicKey.SerializeCompressed()), hex.EncodeToString(nodeID))
 
 			features := ""
-			featureSupport := core.FeatureSupport()
+			featureSupport := backend.FeatureSupport()
 			if featureSupport&(1<<protocol.FeatureIPv4Listen) > 0 {
 				features = "IPv4"
 			}
@@ -132,11 +132,11 @@ func userCommands(input io.Reader, output io.Writer, terminateSignal chan struct
 				features += "Firewall Reported"
 			}
 
-			fmt.Fprintf(output, "User Agent: %s\nFeatures:   %s\n\n", core.SelfUserAgent(), features)
+			fmt.Fprintf(output, "User Agent: %s\nFeatures:   %s\n\n", backend.SelfUserAgent(), features)
 
 			fmt.Fprintf(output, "Listen Address                                  Multicast IP out                  External Address\n")
 
-			for _, network := range core.GetNetworks(4) {
+			for _, network := range backend.GetNetworks(4) {
 				address, _, broadcastIPv4, ipExternal, externalPort := network.GetListen()
 
 				broadcastIPsA := ""
@@ -164,7 +164,7 @@ func userCommands(input io.Reader, output io.Writer, terminateSignal chan struct
 
 				fmt.Fprintf(output, "%-46s  %-32s  %s\n", address.String(), broadcastIPsA, externalAddress)
 			}
-			for _, network := range core.GetNetworks(6) {
+			for _, network := range backend.GetNetworks(6) {
 				address, multicastIP, _, _, externalPort := network.GetListen()
 
 				externalPortA := ""
@@ -176,7 +176,7 @@ func userCommands(input io.Reader, output io.Writer, terminateSignal chan struct
 			}
 
 			fmt.Fprintf(output, "\nPeer ID                                                             Sent      Received  IP                                   Flags   RTT     \n")
-			for _, peer := range GetPeerlistSorted() {
+			for _, peer := range GetPeerlistSorted(backend) {
 				addressA := "N/A"
 				rttA := "N/A"
 				if connectionsActive := peer.GetConnections(true); len(connectionsActive) > 0 {
@@ -210,7 +210,7 @@ func userCommands(input io.Reader, output io.Writer, terminateSignal chan struct
 
 		case "warehouse get":
 			if hash, valid, terminate := getUserOptionHash(reader, terminateSignal); valid {
-				data, found := core.GetDataLocal(hash)
+				data, found := backend.GetDataLocal(hash)
 				if !found {
 					fmt.Fprintf(output, "Not found.\n")
 				} else {
@@ -225,7 +225,7 @@ func userCommands(input io.Reader, output io.Writer, terminateSignal chan struct
 
 		case "warehouse store":
 			if text, valid, terminate := getUserOptionString(reader, terminateSignal); valid {
-				if err := core.StoreDataLocal([]byte(text)); err != nil {
+				if err := backend.StoreDataLocal([]byte(text)); err != nil {
 					fmt.Fprintf(output, "Error storing data: %s\n", err.Error())
 					break
 				}
@@ -236,7 +236,7 @@ func userCommands(input io.Reader, output io.Writer, terminateSignal chan struct
 
 		case "dht store":
 			if text, valid, terminate := getUserOptionString(reader, terminateSignal); valid {
-				if err := core.StoreDataDHT([]byte(text), 5); err != nil {
+				if err := backend.StoreDataDHT([]byte(text), 5); err != nil {
 					fmt.Fprintf(output, "Error storing data: %s\n", err.Error())
 					break
 				}
@@ -247,7 +247,7 @@ func userCommands(input io.Reader, output io.Writer, terminateSignal chan struct
 
 		case "dht get":
 			if hash, valid, terminate := getUserOptionHash(reader, terminateSignal); valid {
-				data, sender, found := core.GetDataDHT(hash)
+				data, sender, found := backend.GetDataDHT(hash)
 				if !found {
 					fmt.Fprintf(output, "Not found.\n")
 				} else {
@@ -309,12 +309,12 @@ func userCommands(input io.Reader, output io.Writer, terminateSignal chan struct
 			}
 
 			// is self?
-			if bytes.Equal(nodeID, core.SelfNodeID()) {
+			if bytes.Equal(nodeID, backend.SelfNodeID()) {
 				fmt.Fprintf(output, "Target node is self.\n")
 				break
 			}
 
-			debugCmdConnect(nodeID)
+			debugCmdConnect(backend, nodeID)
 
 		case "debug watch searches":
 			fmt.Fprintf(output, "Enable (1) or disable (0) watching of all outgoing DHT searches? (current setting: %t)\n", enableMonitorAll)
@@ -394,9 +394,9 @@ func userCommands(input io.Reader, output io.Writer, terminateSignal chan struct
 			timeout := time.Second * 10
 
 			if valid2 {
-				peer, err = webapi.PeerConnectNode(nodeID, timeout)
+				peer, err = webapi.PeerConnectNode(backend, nodeID, timeout)
 			} else if err3 == nil {
-				peer, err = webapi.PeerConnectPublicKey(publicKey, timeout)
+				peer, err = webapi.PeerConnectPublicKey(backend, publicKey, timeout)
 			}
 			if err != nil {
 				fmt.Fprintf(output, "Could not connect to peer: %s\n", err.Error())
@@ -432,9 +432,9 @@ func userCommands(input io.Reader, output io.Writer, terminateSignal chan struct
 			timeout := time.Second * 10
 
 			if valid2 {
-				peer, err = webapi.PeerConnectNode(nodeID, timeout)
+				peer, err = webapi.PeerConnectNode(backend, nodeID, timeout)
 			} else if err3 == nil {
-				peer, err = webapi.PeerConnectPublicKey(publicKey, timeout)
+				peer, err = webapi.PeerConnectPublicKey(backend, publicKey, timeout)
 			}
 			if err != nil {
 				fmt.Fprintf(output, "Could not connect to peer: %s\n", err.Error())
@@ -444,7 +444,7 @@ func userCommands(input io.Reader, output io.Writer, terminateSignal chan struct
 			go blockTransfer(peer, uint64(blockNumber))
 
 		case "exit":
-			core.Filters.LogError("userCommands", "graceful exit via user terminal command\n")
+			backend.Filters.LogError("userCommands", "graceful exit via user terminal command\n")
 			os.Exit(core.ExitGraceful)
 
 		case "search file":
@@ -625,8 +625,8 @@ func connectionStatusToA(status int) (result string) {
 	}
 }
 
-func GetPeerlistSorted() (peers []*core.PeerInfo) {
-	peers = core.PeerlistGet()
+func GetPeerlistSorted(backend *core.Backend) (peers []*core.PeerInfo) {
+	peers = backend.PeerlistGet()
 	sort.Slice(peers, func(i, j int) bool {
 		if peers[i].IsRootPeer && !peers[j].IsRootPeer {
 			return true
