@@ -20,12 +20,12 @@ import (
 )
 
 // debugCmdConnect connects to the node ID
-func debugCmdConnect(nodeID []byte) {
+func debugCmdConnect(backend *core.Backend, nodeID []byte) {
 	fmt.Printf("---------------- Connect to node %s ----------------\n", hex.EncodeToString(nodeID))
 	defer fmt.Printf("---------------- done node %s ----------------\n", hex.EncodeToString(nodeID))
 
 	// in local DHT list?
-	_, peer := core.IsNodeContact(nodeID)
+	_, peer := backend.IsNodeContact(nodeID)
 	if peer != nil {
 		fmt.Printf("* In local routing table: Yes.\n")
 	} else {
@@ -35,7 +35,7 @@ func debugCmdConnect(nodeID []byte) {
 		defer hashMonitorControl(nodeID, 1)
 
 		// Discovery via DHT.
-		_, peer, _ = core.FindNode(nodeID, time.Second*10)
+		_, peer, _ = backend.FindNode(nodeID, time.Second*10)
 		if peer == nil {
 			fmt.Printf("* Not found via DHT :(\n")
 			return

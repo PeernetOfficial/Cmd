@@ -23,7 +23,7 @@ import (
 // Note: The file MUST be stored locally, otherwise this function fails.
 func transferCompareFile(peer *core.PeerInfo, fileHash []byte) {
 	// check if the file exists locally
-	_, fileInfo, status, _ := core.UserWarehouse.FileExists(fileHash)
+	_, fileInfo, status, _ := peer.Backend.UserWarehouse.FileExists(fileHash)
 	if status != warehouse.StatusOK {
 		fmt.Printf("File does not exist in local warehouse: %s\n", hex.EncodeToString(fileHash))
 		return
@@ -99,7 +99,7 @@ func transferCompareFile(peer *core.PeerInfo, fileHash []byte) {
 		// read the exact piece from the local file for comparison
 		dataCompare := make([]byte, 0, n)
 		compareBuffer := bytes.NewBuffer(dataCompare)
-		_, bytesRead, err := core.UserWarehouse.ReadFile(fileHash, int64(fileOffset), int64(n), compareBuffer)
+		_, bytesRead, err := peer.Backend.UserWarehouse.ReadFile(fileHash, int64(fileOffset), int64(n), compareBuffer)
 		if err != nil {
 			fmt.Printf("Warehouse error reading at offset %d length %d: %v\n", fileOffset, n, err)
 			break

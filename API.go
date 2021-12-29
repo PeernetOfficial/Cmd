@@ -39,11 +39,11 @@ func startAPI(backend *core.Backend, apiListen []string, apiKey uuid.UUID) {
 		return
 	}
 
-	api.InitGeoIPDatabase(config.GeoIPDatabase)
+	api.InitGeoIPDatabase(backend.Config.GeoIPDatabase)
 
 	api.AllowKeyInParam = append(api.AllowKeyInParam, "/console")
-	api.Router.HandleFunc("/console", apiConsole).Methods("GET")
-	api.Router.HandleFunc("/shutdown", apiShutdown).Methods("GET")
+	api.Router.HandleFunc("/console", apiConsole(backend)).Methods("GET")
+	api.Router.HandleFunc("/shutdown", apiShutdown(backend)).Methods("GET")
 }
 
 // parseCmdParams parses the "-webapi", "-apikey", and "-watchpid" command line parameters.
@@ -82,56 +82,58 @@ apiConsole provides a websocket to send/receive internal commands.
 Request:    GET /console
 Result:     Upgrade to websocket. The websocket message are texts to read/write.
 */
-func apiConsole(w http.ResponseWriter, r *http.Request) {
-	c, err := webapi.WSUpgrader.Upgrade(w, r, nil)
-	if err != nil {
-		// May happen if request is simple HTTP request.
-		return
-	}
-	defer c.Close()
+func apiConsole(backend *core.Backend) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		c, err := webapi.WSUpgrader.Upgrade(w, r, nil)
+		if err != nil {
+			// May happen if request is simple HTTP request.
+			return
+		}
+		defer c.Close()
 
-	bufferR := bytes.NewBuffer(make([]byte, 0, 4096))
-	bufferW := bytes.NewBuffer(make([]byte, 0, 4096))
+		bufferR := bytes.NewBuffer(make([]byte, 0, 4096))
+		bufferW := bytes.NewBuffer(make([]byte, 0, 4096))
 
-	terminateSignal := make(chan struct{})
-	defer close(terminateSignal)
+		terminateSignal := make(chan struct{})
+		defer close(terminateSignal)
 
-	// start userCommands which handles the actual commands
-	go userCommands(bufferR, bufferW, terminateSignal)
+		// start userCommands which handles the actual commands
+		go userCommands(backend, bufferR, bufferW, terminateSignal)
 
-	// go routine to receive output from userCommands and forward to websocket
-	go func() {
-		bufferW2 := make([]byte, 4096)
+		// go routine to receive output from userCommands and forward to websocket
+		go func() {
+			bufferW2 := make([]byte, 4096)
+			for {
+				select {
+				case <-terminateSignal:
+					return
+				default:
+				}
+
+				countRead, err := bufferW.Read(bufferW2)
+				if err != nil || countRead == 0 {
+					time.Sleep(250 * time.Millisecond)
+					continue
+				}
+
+				c.WriteMessage(websocket.TextMessage, bufferW2[:countRead])
+			}
+		}()
+
+		// read from websocket loop and forward to the userCommands routine
 		for {
-			select {
-			case <-terminateSignal:
-				return
-			default:
+			_, message, err := c.ReadMessage()
+			if err != nil { // when channel is closed, an error is returned here
+				break
 			}
 
-			countRead, err := bufferW.Read(bufferW2)
-			if err != nil || countRead == 0 {
-				time.Sleep(250 * time.Millisecond)
-				continue
+			// make sure the message has the \n delimiter which is used to detect a line
+			if !bytes.HasSuffix(message, []byte{'\n'}) {
+				message = append(message, '\n')
 			}
 
-			c.WriteMessage(websocket.TextMessage, bufferW2[:countRead])
+			bufferR.Write(message)
 		}
-	}()
-
-	// read from websocket loop and forward to the userCommands routine
-	for {
-		_, message, err := c.ReadMessage()
-		if err != nil { // when channel is closed, an error is returned here
-			break
-		}
-
-		// make sure the message has the \n delimiter which is used to detect a line
-		if !bytes.HasSuffix(message, []byte{'\n'}) {
-			message = append(message, '\n')
-		}
-
-		bufferR.Write(message)
 	}
 }
 
@@ -141,22 +143,24 @@ apiShutdown gracefully shuts down the application. Actions: 0 = Shutdown.
 Request:    GET /shutdown?action=[action]
 Result:     200 with JSON structure apiShutdownStatus
 */
-func apiShutdown(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
-	action, err := strconv.Atoi(r.Form.Get("action"))
-	if err != nil || action != 0 {
-		http.Error(w, "", http.StatusBadRequest)
-		return
-	}
+func apiShutdown(backend *core.Backend) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		action, err := strconv.Atoi(r.Form.Get("action"))
+		if err != nil || action != 0 {
+			http.Error(w, "", http.StatusBadRequest)
+			return
+		}
 
-	if action == 0 {
-		// Later: Initiate shutdown signal to core library and wait for all requests to complete.
+		if action == 0 {
+			// Later: Initiate shutdown signal to core library and wait for all requests to complete.
 
-		core.Filters.LogError("apiShutdown", "graceful shutdown via API requested from '%s'\n", r.RemoteAddr)
+			backend.Filters.LogError("apiShutdown", "graceful shutdown via API requested from '%s'\n", r.RemoteAddr)
 
-		EncodeJSONFlush(w, r, &apiShutdownStatus{Status: 0})
+			EncodeJSONFlush(backend, w, r, &apiShutdownStatus{Status: 0})
 
-		os.Exit(core.ExitGraceful)
+			os.Exit(core.ExitGraceful)
+		}
 	}
 }
 
@@ -165,10 +169,10 @@ type apiShutdownStatus struct {
 }
 
 // EncodeJSONFlush encodes the data as JSON and flushes the writer. It sets the Content-Length header so no subsequent writes should be made.
-func EncodeJSONFlush(w http.ResponseWriter, r *http.Request, data interface{}) (err error) {
+func EncodeJSONFlush(backend *core.Backend, w http.ResponseWriter, r *http.Request, data interface{}) (err error) {
 	response, err := json.Marshal(data)
 	if err != nil {
-		core.Filters.LogError("EncodeJSONFlush", "error marshalling data for route '%s': %v\n", r.URL.Path, err)
+		backend.Filters.LogError("EncodeJSONFlush", "error marshalling data for route '%s': %v\n", r.URL.Path, err)
 		return err
 	}
 
@@ -190,7 +194,7 @@ func EncodeJSONFlush(w http.ResponseWriter, r *http.Request, data interface{}) (
 // It uses the command line parameter "-watchpid=[PID]".
 // This can be useful to automatically shut down the application in case the frontend shuts down unexpectedly.
 // Graceful shutdown should be initiated via the /shutdown API.
-func processExitMonitor(watchPID int) {
+func processExitMonitor(backend *core.Backend, watchPID int) {
 	if watchPID == 0 {
 		return
 	}
@@ -198,13 +202,13 @@ func processExitMonitor(watchPID int) {
 	// monitor the process
 	process, err := os.FindProcess(watchPID)
 	if err != nil {
-		core.Filters.LogError("processExitMonitor", "error finding monitored process ID %d: %v\n", watchPID, err)
+		backend.Filters.LogError("processExitMonitor", "error finding monitored process ID %d: %v\n", watchPID, err)
 		return
 	}
 
 	_, err = process.Wait()
 	if err == nil {
-		core.Filters.LogError("processExitMonitor", "graceful shutdown via exit signal from process ID %d\n", watchPID)
+		backend.Filters.LogError("processExitMonitor", "graceful shutdown via exit signal from process ID %d\n", watchPID)
 
 		// Later: Initiate shutdown signal to core library and wait for all requests to complete.
 
