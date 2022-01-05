@@ -44,6 +44,10 @@ func startAPI(backend *core.Backend, apiListen []string, apiKey uuid.UUID) {
 	api.AllowKeyInParam = append(api.AllowKeyInParam, "/console")
 	api.Router.HandleFunc("/console", apiConsole(backend)).Methods("GET")
 	api.Router.HandleFunc("/shutdown", apiShutdown(backend)).Methods("GET")
+
+	if config.DebugAPI {
+		attachDebugAPI(api)
+	}
 }
 
 // parseCmdParams parses the "-webapi", "-apikey", and "-watchpid" command line parameters.

@@ -231,3 +231,21 @@ Use the parameter `-watchpid=[PID]` to specify a process ID to monitor for exit 
 ```
 Cmd -watchpid=1234
 ```
+
+## Debug
+
+### Compile Debug Version
+
+A debug version that exposes multiple endpoints via `/debug` for profiling can be compiled by using the debug tag:
+
+```
+go build -tags debug
+```
+
+### Use the Profiler
+
+Once started attach the profiler `go tool pprof`. Note that `/debug` endpoints are not excluded from API authentication. If an API key is used, it can be provided via the `&k=` parameter.
+
+```
+go tool pprof -http=127.0.0.1:80 Cmd.exe http://127.0.0.1:1337/debug/pprof/heap?k=a30c01eb-856c-4b79-bdde-3c56a248f71b
+```
