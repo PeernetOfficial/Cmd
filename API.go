@@ -98,6 +98,11 @@ func apiConsole(backend *core.Backend) func(w http.ResponseWriter, r *http.Reque
 		bufferR := bytes.NewBuffer(make([]byte, 0, 4096))
 		bufferW := bytes.NewBuffer(make([]byte, 0, 4096))
 
+		// subscribe to any output sent to backend.Stdout
+		subscribeID := backend.Stdout.Subscribe(bufferW)
+		defer backend.Stdout.Unsubscribe(subscribeID)
+
+		// the terminate signal is used to signal the command handler in case the websocket is closed
 		terminateSignal := make(chan struct{})
 		defer close(terminateSignal)
 
