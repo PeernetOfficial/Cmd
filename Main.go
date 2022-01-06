@@ -83,6 +83,8 @@ func main() {
 		os.Exit(status)
 	}
 
+	backend.Stdout.Subscribe(os.Stdout)
+
 	apiListen, apiKey, watchPID := parseCmdParams()
 	startAPI(backend, apiListen, apiKey)
 
