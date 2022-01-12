@@ -164,7 +164,7 @@ func apiShutdown(backend *core.Backend) func(w http.ResponseWriter, r *http.Requ
 		if action == 0 {
 			// Later: Initiate shutdown signal to core library and wait for all requests to complete.
 
-			backend.Filters.LogError("apiShutdown", "graceful shutdown via API requested from '%s'\n", r.RemoteAddr)
+			backend.LogError("apiShutdown", "graceful shutdown via API requested from '%s'\n", r.RemoteAddr)
 
 			EncodeJSONFlush(backend, w, r, &apiShutdownStatus{Status: 0})
 
@@ -181,7 +181,7 @@ type apiShutdownStatus struct {
 func EncodeJSONFlush(backend *core.Backend, w http.ResponseWriter, r *http.Request, data interface{}) (err error) {
 	response, err := json.Marshal(data)
 	if err != nil {
-		backend.Filters.LogError("EncodeJSONFlush", "error marshalling data for route '%s': %v\n", r.URL.Path, err)
+		backend.LogError("EncodeJSONFlush", "error marshalling data for route '%s': %v\n", r.URL.Path, err)
 		return err
 	}
 
@@ -211,13 +211,13 @@ func processExitMonitor(backend *core.Backend, watchPID int) {
 	// monitor the process
 	process, err := os.FindProcess(watchPID)
 	if err != nil {
-		backend.Filters.LogError("processExitMonitor", "error finding monitored process ID %d: %v\n", watchPID, err)
+		backend.LogError("processExitMonitor", "error finding monitored process ID %d: %v\n", watchPID, err)
 		return
 	}
 
 	_, err = process.Wait()
 	if err == nil {
-		backend.Filters.LogError("processExitMonitor", "graceful shutdown via exit signal from process ID %d\n", watchPID)
+		backend.LogError("processExitMonitor", "graceful shutdown via exit signal from process ID %d\n", watchPID)
 
 		// Later: Initiate shutdown signal to core library and wait for all requests to complete.
 
