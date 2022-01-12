@@ -264,7 +264,7 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 		case "log error":
 			fmt.Fprintf(output, "Please choose the target output of error messages:\n0 = Log file (default)\n1 = Command line\n2 = Log file + command line\n3 = None\n")
 			if number, valid, terminate := getUserOptionInt(reader, terminateSignal); valid && number >= 0 && number <= 3 {
-				config.ErrorOutput = number
+				backend.Config.LogTarget = number
 			} else if terminate {
 				return
 			} else {
@@ -444,7 +444,7 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 			go blockTransfer(peer, uint64(blockNumber), output)
 
 		case "exit":
-			backend.Filters.LogError("userCommands", "graceful exit via user terminal command\n")
+			backend.LogError("userCommands", "graceful exit via user terminal command\n")
 			os.Exit(core.ExitGraceful)
 
 		case "search file":
@@ -640,21 +640,6 @@ func GetPeerlistSorted(backend *core.Backend) (peers []*core.PeerInfo) {
 	})
 
 	return peers
-}
-
-// logError handles error messages from core
-func logError(function, format string, v ...interface{}) {
-	switch config.ErrorOutput {
-	case 0:
-		core.DefaultLogError(function, format, v...)
-
-	case 1:
-		fmt.Printf("["+function+"] "+format, v...)
-
-	case 2:
-		core.DefaultLogError(function, format, v...)
-		fmt.Printf("["+function+"] "+format, v...)
-	}
 }
 
 // ---- command-line helper functions ----
