@@ -54,6 +54,13 @@ func showHelp(output io.Writer) {
 
 func userCommands(backend *core.Backend, input io.Reader, output io.Writer, terminateSignal chan struct{}) {
 	reader := bufio.NewReader(input)
+	monitoredHashes := make(map[string]struct{})
+
+	defer func() { // unmonitor hashes in case of terminate signal
+		for hash := range monitoredHashes {
+			hashMonitorControl([]byte(hash), 1)
+		}
+	}()
 
 	fmt.Fprint(output, appName+" "+core.Version+"\n------------------------------\n")
 	showHelp(output)
@@ -361,8 +368,10 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 
 			added := hashMonitorControl(hash, 2)
 			if added {
+				monitoredHashes[string(hash)] = struct{}{}
 				fmt.Fprintf(output, "The hash was added to the monitoring list.\n")
 			} else {
+				delete(monitoredHashes, string(hash))
 				fmt.Fprintf(output, "The hash was removed from the monitoring list.\n")
 			}
 
