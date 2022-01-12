@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"sync"
 	"time"
 
@@ -20,16 +21,16 @@ import (
 )
 
 // debugCmdConnect connects to the node ID
-func debugCmdConnect(backend *core.Backend, nodeID []byte) {
-	fmt.Printf("---------------- Connect to node %s ----------------\n", hex.EncodeToString(nodeID))
-	defer fmt.Printf("---------------- done node %s ----------------\n", hex.EncodeToString(nodeID))
+func debugCmdConnect(backend *core.Backend, nodeID []byte, output io.Writer) {
+	fmt.Fprintf(output, "---------------- Connect to node %s ----------------\n", hex.EncodeToString(nodeID))
+	defer fmt.Fprintf(output, "---------------- done node %s ----------------\n", hex.EncodeToString(nodeID))
 
 	// in local DHT list?
 	_, peer := backend.IsNodeContact(nodeID)
 	if peer != nil {
-		fmt.Printf("* In local routing table: Yes.\n")
+		fmt.Fprintf(output, "* In local routing table: Yes.\n")
 	} else {
-		fmt.Printf("* In local routing table: No. Lookup via DHT. Timeout = 10 seconds.\n")
+		fmt.Fprintf(output, "* In local routing table: No. Lookup via DHT. Timeout = 10 seconds.\n")
 
 		hashMonitorControl(nodeID, 0)
 		defer hashMonitorControl(nodeID, 1)
@@ -37,30 +38,30 @@ func debugCmdConnect(backend *core.Backend, nodeID []byte) {
 		// Discovery via DHT.
 		_, peer, _ = backend.FindNode(nodeID, time.Second*10)
 		if peer == nil {
-			fmt.Printf("* Not found via DHT :(\n")
+			fmt.Fprintf(output, "* Not found via DHT :(\n")
 			return
 		}
 
-		fmt.Printf("* Successfully discovered via DHT.\n")
+		fmt.Fprintf(output, "* Successfully discovered via DHT.\n")
 	}
 
-	fmt.Printf("* Peer details:\n")
-	fmt.Printf("  Uncontacted:      %t\n", peer.IsVirtual())
-	fmt.Printf("  Root peer:        %t\n", peer.IsRootPeer)
-	fmt.Printf("  User Agent:       %s\n", peer.UserAgent)
-	fmt.Printf("  Firewall:         %t\n", peer.IsFirewallReported())
+	fmt.Fprintf(output, "* Peer details:\n")
+	fmt.Fprintf(output, "  Uncontacted:      %t\n", peer.IsVirtual())
+	fmt.Fprintf(output, "  Root peer:        %t\n", peer.IsRootPeer)
+	fmt.Fprintf(output, "  User Agent:       %s\n", peer.UserAgent)
+	fmt.Fprintf(output, "  Firewall:         %t\n", peer.IsFirewallReported())
 
 	// virtual peer?
 	if peer.IsVirtual() {
-		fmt.Printf("* Peer is virtual and was not contacted before. Sending out ping.\n")
+		fmt.Fprintf(output, "* Peer is virtual and was not contacted before. Sending out ping.\n")
 		peer.Ping()
 	} else {
-		fmt.Printf("* Connections:\n")
-		fmt.Printf("%s", textPeerConnections(peer))
+		fmt.Fprintf(output, "* Connections:\n")
+		fmt.Fprintf(output, "%s", textPeerConnections(peer))
 	}
 
 	// ping via all connections TODO
-	//fmt.Printf("* Sending ping:\n")
+	//fmt.Fprintf(output, "* Sending ping:\n")
 }
 
 // ---- filter for outgoing DHT searches ----

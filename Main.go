@@ -18,6 +18,9 @@ const configFile = "Config.yaml"
 const appName = "Peernet Cmd"
 
 var config struct {
+	// Warning: These settings are currently overwritten (deleted) when the config file is updated by core.
+	// In the future the core package will consider custom config fields.
+
 	// Log settings
 	ErrorOutput int  `yaml:"ErrorOutput"` // 0 = Log file (default),  1 = Command line, 2 = Log file + command line, 3 = None
 	DebugAPI    bool `yaml:"DebugAPI"`    // Enables the debug API which allows profiling. Do not enable in production. Only available if compiled with debug tag.

@@ -314,7 +314,7 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 				break
 			}
 
-			debugCmdConnect(backend, nodeID)
+			debugCmdConnect(backend, nodeID, output)
 
 		case "debug watch searches":
 			fmt.Fprintf(output, "Enable (1) or disable (0) watching of all outgoing DHT searches? (current setting: %t)\n", enableMonitorAll)
@@ -403,7 +403,7 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 				break
 			}
 
-			go transferCompareFile(peer, fileHash)
+			go transferCompareFile(peer, fileHash, output)
 
 		case "get block":
 			fmt.Fprintf(output, "Enter peer ID or node ID:\n")
@@ -441,7 +441,7 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 				break
 			}
 
-			go blockTransfer(peer, uint64(blockNumber))
+			go blockTransfer(peer, uint64(blockNumber), output)
 
 		case "exit":
 			backend.Filters.LogError("userCommands", "graceful exit via user terminal command\n")
@@ -455,14 +455,14 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 
 			results := backend.SearchIndex.Search(text)
 			if len(results) == 0 {
-				fmt.Printf("No results found.\n")
+				fmt.Fprintf(output, "No results found.\n")
 				break
 			}
 
 			for _, result := range results {
-				fmt.Printf("- File ID               %s\n", result.FileID.String())
-				fmt.Printf("  Public Key            %s\n", hex.EncodeToString(result.PublicKey.SerializeCompressed()))
-				fmt.Printf("  Block Number          %d\n", result.BlockNumber)
+				fmt.Fprintf(output, "- File ID               %s\n", result.FileID.String())
+				fmt.Fprintf(output, "  Public Key            %s\n", hex.EncodeToString(result.PublicKey.SerializeCompressed()))
+				fmt.Fprintf(output, "  Block Number          %d\n", result.BlockNumber)
 				keywords := ""
 				for n, selector := range result.Selectors {
 					if n > 0 {
@@ -470,8 +470,11 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 					}
 					keywords += selector.Word
 				}
-				fmt.Printf("  Found via keywords    %s\n", keywords)
+				fmt.Fprintf(output, "  Found via keywords    %s\n", keywords)
 			}
+
+		default:
+			fmt.Fprintf(output, "Unknown command.\n")
 		}
 	}
 }
