@@ -121,7 +121,7 @@ func apiConsole(backend *core.Backend) func(w http.ResponseWriter, r *http.Reque
 
 				countRead, err := bufferW.Read(bufferW2)
 				if err != nil || countRead == 0 {
-					time.Sleep(250 * time.Millisecond)
+					time.Sleep(50 * time.Millisecond)
 					continue
 				}
 
