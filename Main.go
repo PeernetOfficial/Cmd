@@ -46,8 +46,6 @@ func init() {
 		}
 		os.Exit(status)
 	}
-
-	monitorKeys = make(map[string]struct{})
 }
 
 func main() {

@@ -58,7 +58,7 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 
 	defer func() { // unmonitor hashes in case of terminate signal
 		for hash := range monitoredHashes {
-			hashMonitorControl([]byte(hash), 1)
+			hashMonitorControl([]byte(hash), 1, nil)
 		}
 	}()
 
@@ -324,9 +324,15 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 			debugCmdConnect(backend, nodeID, output)
 
 		case "debug watch searches":
-			fmt.Fprintf(output, "Enable (1) or disable (0) watching of all outgoing DHT searches? (current setting: %t)\n", enableMonitorAll)
+			fmt.Fprintf(output, "Enable (1) or disable (0) watching of all outgoing DHT searches?\n")
 			if number, valid, terminate := getUserOptionInt(reader, terminateSignal); valid && number >= 0 && number <= 1 {
-				enableMonitorAll = number == 1
+				if number == 1 {
+					hashMonitorControl([]byte(keyMonitorAllSearches), 0, output)
+					monitoredHashes[keyMonitorAllSearches] = struct{}{}
+				} else {
+					hashMonitorControl([]byte(keyMonitorAllSearches), 1, output)
+					delete(monitoredHashes, keyMonitorAllSearches)
+				}
 			} else if terminate {
 				return
 			} else {
@@ -334,9 +340,15 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 			}
 
 		case "debug watch incoming":
-			fmt.Fprintf(output, "Enable (1) or disable (0) watching of all incoming information requests? (current setting: %t)\n", enableWatchIncomingAll)
+			fmt.Fprintf(output, "Enable (1) or disable (0) watching of all incoming information requests?\n")
 			if number, valid, terminate := getUserOptionInt(reader, terminateSignal); valid && number >= 0 && number <= 1 {
-				enableWatchIncomingAll = number == 1
+				if number == 1 {
+					hashMonitorControl([]byte(keyMonitorAllRequests), 0, output)
+					monitoredHashes[keyMonitorAllRequests] = struct{}{}
+				} else {
+					hashMonitorControl([]byte(keyMonitorAllRequests), 1, output)
+					delete(monitoredHashes, keyMonitorAllRequests)
+				}
 			} else if terminate {
 				return
 			} else {
@@ -366,7 +378,7 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 				break
 			}
 
-			added := hashMonitorControl(hash, 2)
+			added := hashMonitorControl(hash, 2, output)
 			if added {
 				monitoredHashes[string(hash)] = struct{}{}
 				fmt.Fprintf(output, "The hash was added to the monitoring list.\n")
