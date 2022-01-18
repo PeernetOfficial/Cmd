@@ -49,6 +49,7 @@ func showHelp(output io.Writer) {
 		"log error                     Set error log output\n"+
 		"exit                          Exit\n"+
 		"search file                   Search globally for files using the local search index\n"+
+		"add file                      Adds specified file path to the local warehouse and local blockchain\n"+
 		"\n")
 }
 
@@ -493,6 +494,15 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 				}
 				fmt.Fprintf(output, "  Found via keywords    %s\n", keywords)
 			}
+
+		case "add file":
+			fmt.Fprintf(output, "Enter File Path:\n")
+			filePath, _, terminate := getUserOptionString(reader, terminateSignal)
+			if terminate {
+				return
+			}
+			// Add the file to the warehouse and the local blockchain
+			AddFile(backend, filePath, output)
 
 		default:
 			fmt.Fprintf(output, "Unknown command.\n")
