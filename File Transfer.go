@@ -1,7 +1,7 @@
 /*
 File Name:  File Transfer.go
 Copyright:  2021 Peernet Foundation s.r.o.
-Author:     Peter Kleissner
+Authors:     Peter Kleissner
 */
 
 package main

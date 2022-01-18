@@ -1,7 +1,8 @@
 /*
-File Name:  File Transfer.go
+File Name:  Add File.go
 Copyright:  2021 Peernet Foundation s.r.o.
 Author:     Peter Kleissner
+Modified by: Akilan Selvacoumar
 */
 
 package main
