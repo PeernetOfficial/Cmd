@@ -32,22 +32,6 @@ var config struct {
 	DebugAPI           bool      `yaml:"DebugAPI"`           // Enables the debug API which allows profiling. Do not enable in production. Only available if compiled with debug tag.
 }
 
-func init() {
-	if status, err := core.LoadConfig(configFile, &config); status != core.ExitSuccess {
-		switch status {
-		case core.ExitErrorConfigAccess:
-			fmt.Printf("Unknown error accessing config file '%s': %s\n", configFile, err.Error())
-		case core.ExitErrorConfigRead:
-			fmt.Printf("Error reading config file '%s': %s\n", configFile, err.Error())
-		case core.ExitErrorConfigParse:
-			fmt.Printf("Error parsing config file '%s' (make sure it is valid YAML format): %s\n", configFile, err.Error())
-		default:
-			fmt.Printf("Unknown error loading config file '%s': %s\n", configFile, err.Error())
-		}
-		os.Exit(status)
-	}
-}
-
 func main() {
 	userAgent := appName + "/" + core.Version
 
@@ -62,7 +46,7 @@ func main() {
 		MessageOutPong:         filterMessageOutPong,
 	}
 
-	backend, status, err := core.Init(userAgent, configFile, filters)
+	backend, status, err := core.Init(userAgent, configFile, filters, &config)
 
 	if status != core.ExitSuccess {
 		switch status {
