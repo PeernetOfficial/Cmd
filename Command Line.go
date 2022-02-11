@@ -49,6 +49,9 @@ func showHelp(output io.Writer) {
 		"log error                     Set error log output\n"+
 		"exit                          Exit\n"+
 		"search file                   Search globally for files using the local search index\n"+
+		"add blacklist                 Adds a node to the blacklist\n"+
+		"list blacklist                Shows all nodes in the blacklist\n"+
+		"remove blacklist              removes all nodes in the blacklist\n"+
 		"\n")
 }
 
@@ -492,6 +495,66 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 					keywords += selector.Word
 				}
 				fmt.Fprintf(output, "  Found via keywords    %s\n", keywords)
+			}
+
+		case "add blacklist":
+			fmt.Fprintf(output, "Enter node peer ID:\n")
+			peerID, _, terminate := getUserOptionString(reader, terminateSignal)
+			if terminate {
+				return
+			}
+
+			publicKeyB, err := hex.DecodeString(peerID)
+			if err != nil || len(publicKeyB) != 33 {
+				fmt.Fprintf(output, "Invalid peer ID encoding.\n")
+				break
+			}
+
+			publicKey, err := btcec.ParsePubKey(publicKeyB, btcec.S256())
+			if err != nil {
+				fmt.Fprintf(output, "Invalid peer ID (public key decoding failed).\n")
+				continue
+			}
+
+			fmt.Fprintf(output, "Enter reason for blacklist:\n")
+			Reason, _, terminate := getUserOptionString(reader, terminateSignal)
+			if terminate {
+				return
+			}
+
+			peerInfo := backend.PeerlistLookup(publicKey)
+
+			// add node information to the blacklist
+			backend.AddBlackList(peerInfo, Reason)
+
+			fmt.Println("Node added to the blacklist")
+
+		case "list blacklist":
+			backend.ListAllNodesInBlackList()
+
+		case "remove blacklist":
+			fmt.Fprintf(output, "Enter node peer ID:\n")
+			peerID, _, terminate := getUserOptionString(reader, terminateSignal)
+			if terminate {
+				return
+			}
+
+			publicKeyB, err := hex.DecodeString(peerID)
+			if err != nil || len(publicKeyB) != 33 {
+				fmt.Fprintf(output, "Invalid peer ID encoding.\n")
+				break
+			}
+
+			_, err = btcec.ParsePubKey(publicKeyB, btcec.S256())
+			if err != nil {
+				fmt.Fprintf(output, "Invalid peer ID (public key decoding failed).\n")
+				continue
+			}
+
+			// If the node ID exists in the blacklist
+			// then remove it from the blacklist
+			if backend.CheckNodeBlackList(publicKeyB) {
+				backend.RemoveNodeBlackList(publicKeyB)
 			}
 
 		default:
