@@ -24,12 +24,11 @@ import (
 // Note: The file MUST be stored locally, otherwise this function fails.
 func transferCompareFile(peer *core.PeerInfo, fileHash []byte, output io.Writer) {
 	// check if the file exists locally
-	_, fileInfo, status, _ := peer.Backend.UserWarehouse.FileExists(fileHash)
+	_, fileSizeLocal, status, _ := peer.Backend.UserWarehouse.FileExists(fileHash)
 	if status != warehouse.StatusOK {
 		fmt.Fprintf(output, "File does not exist in local warehouse: %s\n", hex.EncodeToString(fileHash))
 		return
 	}
-	expectedSize := fileInfo.Size()
 
 	// peer must be connected
 	if !peer.IsConnectionActive() {
@@ -55,15 +54,15 @@ func transferCompareFile(peer *core.PeerInfo, fileHash []byte, output io.Writer)
 		return
 	}
 
-	if fileSize != uint64(expectedSize) {
-		fmt.Fprintf(output, "Error expected local file size %d mismatch with remote file size %d\n", expectedSize, fileSize)
+	if fileSize != fileSizeLocal {
+		fmt.Fprintf(output, "Error expected local file size %d mismatch with remote file size %d\n", fileSizeLocal, fileSize)
 		return
 	} else if fileSize != transferSize {
 		fmt.Fprintf(output, "Error remote peer only offering %d of total file size %d\n", transferSize, fileSize)
 		return
 	}
 
-	fmt.Fprintf(output, "3. Matching transfer size %d and file size %d\n", transferSize, expectedSize)
+	fmt.Fprintf(output, "3. Matching transfer size %d and file size %d\n", transferSize, fileSizeLocal)
 
 	// Previous: Loop in explicitly 512 bytes (which is the same buffer as io.Copy apparently) and compare with what is expected.
 	// Now use 4 KB buffer.
@@ -136,7 +135,7 @@ func transferCompareFile(peer *core.PeerInfo, fileHash []byte, output io.Writer)
 
 	fmt.Fprintf(output, "Transfer took %s. Speed is %.2f KB/s\n", time.Since(timeStart).String(), speed)
 
-	if totalRead != int(expectedSize) {
+	if totalRead != int(fileSizeLocal) {
 		fmt.Fprintf(output, "Error transferred data %d mismatch with reported file size %d\n", totalRead, fileSize)
 		return
 	}
