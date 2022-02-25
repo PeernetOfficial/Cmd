@@ -141,6 +141,10 @@ func transferCompareFile(peer *core.PeerInfo, fileHash []byte, output io.Writer)
 	}
 
 	fmt.Fprintf(output, "Finished reading total of %d bytes. Expected %d bytes.\n", totalRead, fileSize)
+
+	fmt.Println("---------------------- UDT Stats -------------------------------")
+	// Print UDT metrics
+	udtConn.PrintMetrics()
 }
 
 func translateTerminateReason(reason int) string {
