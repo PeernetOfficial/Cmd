@@ -144,7 +144,7 @@ func transferCompareFile(peer *core.PeerInfo, fileHash []byte, output io.Writer)
 
 	fmt.Println("---------------------- UDT Stats -------------------------------")
 	// Print UDT metrics
-	udtConn.PrintMetrics()
+	PrintMetrics(udtConn)
 }
 
 func translateTerminateReason(reason int) string {
@@ -179,6 +179,51 @@ func translateTerminateReason(reason int) string {
 	default:
 		return "Unknown."
 	}
+}
+
+// PrintMetrics Prints metrics collected from UDT
+func PrintMetrics(s *udt.UDTSocket) {
+	// Get metrics from UDT 
+	metrics := s.GetMetrics()
+	
+	fmt.Printf("Total HandShake Packets Sent:%d \n", metrics.PktSendHandShake)
+	fmt.Printf("Total HandShake Packets Received:%d \n", metrics.PktRecvHandShake)
+
+	fmt.Printf("Total keep-alive Packets Sent:%d \n", metrics.PktSendKeepAlive)
+	fmt.Printf("Total keep-alive Packets Received:%d \n", metrics.PktRecvKeepAlive)
+
+	fmt.Printf("Total ACK Packets Sent:%d \n", metrics.PktSentACK)
+	fmt.Printf("Total ACK Packets Received:%d \n", metrics.PktRecvACK)
+
+	fmt.Printf("Total NAK Packets Sent:%d \n", metrics.PktSentNAK)
+	fmt.Printf("Total NAK Packets Received:%d \n", metrics.PktRecvNAK)
+
+	fmt.Printf("Total Congestion Packets Sent:%d \n", metrics.PktSentCongestion)
+	fmt.Printf("Total Congestion Packets Received:%d \n", metrics.PktRecvCongestion)
+
+	fmt.Printf("Total Shutdown Packets Sent:%d \n", metrics.PktSentShutdown)
+	fmt.Printf("Total Shutdown Packets Received:%d \n", metrics.PktRecvShutdown)
+
+	fmt.Printf("Total ACK2 Packets Sent:%d \n", metrics.PktSentACK2)
+	fmt.Printf("Total ACK2 Packets Received:%d \n", metrics.PktRecvACK2)
+
+	fmt.Printf("Total Msg-drop Packets Sent:%d \n", metrics.PktSendMessageDrop)
+	fmt.Printf("Total Msg-drop Packets Received:%d \n", metrics.PktRecvMessageDrop)
+
+	fmt.Printf("Total Error Packets Sent:%d \n", metrics.PktSendError)
+	fmt.Printf("Total Error Packets Received:%d \n", metrics.PktRecvError)
+
+	fmt.Printf("Total User-defined Packets Sent:%d \n", metrics.PktSendUserDefined)
+	fmt.Printf("Total User-define Packets Received:%d \n", metrics.PktRecvUserDefined)
+
+	fmt.Printf("Total Data Packets Sent:%d \n", metrics.PktSent)
+	fmt.Printf("Total Data Received:%d \n", metrics.PktRecv)
+
+	fmt.Printf("Total Other Packets Sent:%d \n", metrics.PktSentOther)
+	fmt.Printf("Total Other Packets Received:%d \n", metrics.PktRecvOther)
+
+	fmt.Printf("Total Number Of Data packets attempted to get Processed:%d \n", metrics.DataPacketsAttemptedProcess)
+	fmt.Printf("Total Number Of Data packets out of order:%d \n", metrics.DataPacketsNotFullyProcessed)
 }
 
 /*
