@@ -137,10 +137,11 @@ func transferCompareFile(peer *core.PeerInfo, fileHash []byte, output io.Writer)
 
 	if totalRead != int(fileSizeLocal) {
 		fmt.Fprintf(output, "Error transferred data %d mismatch with reported file size %d\n", totalRead, fileSize)
-		return
+	} else {
+		fmt.Fprintf(output, "Finished reading total of %d bytes. Expected %d bytes.\n", totalRead, fileSize)
 	}
 
-	fmt.Fprintf(output, "Finished reading total of %d bytes. Expected %d bytes.\n", totalRead, fileSize)
+	outputUDTMetrics(udtConn.Metrics, output)
 }
 
 func translateTerminateReason(reason int) string {
@@ -175,6 +176,24 @@ func translateTerminateReason(reason int) string {
 	default:
 		return "Unknown."
 	}
+}
+
+func outputUDTMetrics(metrics *udt.Metrics, output io.Writer) {
+	fmt.Fprintf(output, "---- UDT Metrics ----\nPacket Type         Sent      Received\n")
+	fmt.Fprintf(output, "HandShake           %-8d  %-8d\n", metrics.PktSendHandShake, metrics.PktRecvHandShake)
+	fmt.Fprintf(output, "ACK                 %-8d  %-8d\n", metrics.PktSentACK, metrics.PktRecvACK)
+	fmt.Fprintf(output, "NAK                 %-8d  %-8d\n", metrics.PktSentNAK, metrics.PktRecvNAK)
+	fmt.Fprintf(output, "Shutdown            %-8d  %-8d\n", metrics.PktSentShutdown, metrics.PktRecvShutdown)
+	fmt.Fprintf(output, "ACK2                %-8d  %-8d\n", metrics.PktSentACK2, metrics.PktRecvACK2)
+	fmt.Fprintf(output, "Data                %-8d  %-8d\n", metrics.PktSentData, metrics.PktRecvData)
+
+	// No need to output stats on packets that are not used in the current implementation.
+	//fmt.Fprintf(output, "keep-alive          %-8d  %-8d\n", metrics.PktSendKeepAlive, metrics.PktRecvKeepAlive)
+	//fmt.Fprintf(output, "Msg-drop            %-8d  %-8d\n", metrics.PktSendMessageDrop, metrics.PktRecvMessageDrop)
+	//fmt.Fprintf(output, "Congestion          %-8d  %-8d\n", metrics.PktSentCongestion, metrics.PktRecvCongestion)
+	//fmt.Fprintf(output, "Error               %-8d  %-8d\n", metrics.PktSendError, metrics.PktRecvError)
+	//fmt.Fprintf(output, "User-defined        %-8d  %-8d\n", metrics.PktSendUserDefined, metrics.PktRecvUserDefined)
+	//fmt.Fprintf(output, "Other               %-8d  %-8d\n", metrics.PktSentOther, metrics.PktRecvOther)
 }
 
 /*
