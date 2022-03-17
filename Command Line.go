@@ -49,6 +49,7 @@ func showHelp(output io.Writer) {
 		"log error                     Set error log output\n"+
 		"exit                          Exit\n"+
 		"search file                   Search globally for files using the local search index\n"+
+		"transfer list                 List of transfers\n"+
 		"\n")
 }
 
@@ -494,6 +495,130 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 				fmt.Fprintf(output, "  Found via keywords    %s\n", keywords)
 			}
 
+		case "transfer list":
+			var textF, textB string
+
+			for _, session := range backend.LiteSessions() {
+				if virtualConn, ok := session.Data.(*core.VirtualPacketConn); ok {
+					if fileStats, ok := virtualConn.Stats.(*core.FileTransferStats); ok {
+						var direction string
+						switch fileStats.Direction {
+						case core.DirectionIn:
+							direction = "In"
+						case core.DirectionOut:
+							direction = "Out"
+						case core.DirectionBi:
+							direction = "Bi"
+						}
+
+						textF += fmt.Sprintf("%-12s  %-12s  %-12s  %-3s  %-10d %-10d %-8d",
+							shortenText(session.ID.String(), 8), shortenText(hex.EncodeToString(virtualConn.Peer.PublicKey.SerializeCompressed()), 8), shortenText(hex.EncodeToString(fileStats.Hash), 8),
+							direction, fileStats.FileSize, fileStats.Offset, fileStats.Limit)
+
+						if fileStats.UDTConn != nil {
+							metrics := fileStats.UDTConn.Metrics
+
+							speed := "?"
+							percent := "?"
+							//eta := "?"
+
+							switch fileStats.Direction {
+							case core.DirectionIn:
+								speed = fmt.Sprintf("%.2f KB/s", metrics.SpeedReceive/1024)
+								if fileStats.FileSize > 0 && metrics.DataReceived >= 16 {
+									percent = fmt.Sprintf("%.2f%%", float64((metrics.DataReceived-16)*100)/float64(fileStats.FileSize))
+								}
+							case core.DirectionOut:
+								speed = fmt.Sprintf("%.2f KB/s", metrics.SpeedSend/1024)
+								if fileStats.FileSize > 0 && metrics.DataSent >= 16 {
+									percent = fmt.Sprintf("%.2f%%", float64((metrics.DataSent-16)*100)/float64(fileStats.FileSize))
+								}
+							case core.DirectionBi:
+								speed = fmt.Sprintf("%.2f KB/s - %.2f KB/s", metrics.SpeedSend/1024, metrics.SpeedReceive/1024)
+							}
+
+							status := "Active"
+							if reason := virtualConn.GetTerminateReason(); reason > 0 {
+								status = "Terminated. " + translateTerminateReason(reason)
+							}
+
+							started := metrics.Started.Format(dateFormat)
+
+							textF += fmt.Sprintf(" | %-12s  %-5s %-5s %-8s %-8s %-8s %-8s %-14s %-7s %s  %s\n",
+								formatTextNumbers2(metrics.DataSent, metrics.DataReceived), formatTextNumbers2(metrics.PktSendHandShake, metrics.PktRecvHandShake), formatTextNumbers2(metrics.PktSentShutdown, metrics.PktRecvShutdown),
+								formatTextNumbers2(metrics.PktSentACK, metrics.PktRecvACK), formatTextNumbers2(metrics.PktSentNAK, metrics.PktRecvNAK), formatTextNumbers2(metrics.PktSentACK2, metrics.PktRecvACK2), formatTextNumbers2(metrics.PktSentData, metrics.PktRecvData),
+								speed, percent, started, status)
+						} else {
+							textF += "  [UDT connection not established]\n"
+						}
+					} else if blockStats, ok := virtualConn.Stats.(*core.BlockTransferStats); ok {
+						var direction, targetBlocks string
+						switch blockStats.Direction {
+						case core.DirectionIn:
+							direction = "In"
+						case core.DirectionOut:
+							direction = "Out"
+						case core.DirectionBi:
+							direction = "Bi"
+						}
+
+						for n, block := range blockStats.TargetBlocks {
+							if n > 0 {
+								targetBlocks += ", "
+							}
+							targetBlocks += fmt.Sprintf("%d-%d", block.Offset, block.Limit)
+						}
+
+						textB += fmt.Sprintf("%-12s  %-12s  %-12s  %-17s %-3s  %-12d %-15d",
+							shortenText(session.ID.String(), 8), shortenText(hex.EncodeToString(virtualConn.Peer.PublicKey.SerializeCompressed()), 8), shortenText(hex.EncodeToString(blockStats.BlockchainPublicKey.SerializeCompressed()), 8),
+							targetBlocks, direction, blockStats.LimitBlockCount, blockStats.MaxBlockSize)
+
+						if blockStats.UDTConn != nil {
+							metrics := blockStats.UDTConn.Metrics
+
+							speed := "?"
+							percent := ""
+							//eta := "?"
+
+							switch blockStats.Direction {
+							case core.DirectionIn:
+								speed = fmt.Sprintf("%.2f KB/s", metrics.SpeedReceive/1024)
+							case core.DirectionOut:
+								speed = fmt.Sprintf("%.2f KB/s", metrics.SpeedSend/1024)
+							case core.DirectionBi:
+								speed = fmt.Sprintf("%.2f KB/s - %.2f KB/s", metrics.SpeedSend/1024, metrics.SpeedReceive/1024)
+							}
+
+							status := "Active"
+							if reason := virtualConn.GetTerminateReason(); reason > 0 {
+								status = "Terminated. " + translateTerminateReason(reason)
+							}
+
+							started := metrics.Started.Format(dateFormat)
+
+							textB += fmt.Sprintf(" | %-12s  %-5s %-5s %-8s %-8s %-8s %-8s %-14s %-7s %s  %s\n",
+								formatTextNumbers2(metrics.DataSent, metrics.DataReceived), formatTextNumbers2(metrics.PktSendHandShake, metrics.PktRecvHandShake), formatTextNumbers2(metrics.PktSentShutdown, metrics.PktRecvShutdown),
+								formatTextNumbers2(metrics.PktSentACK, metrics.PktRecvACK), formatTextNumbers2(metrics.PktSentNAK, metrics.PktRecvNAK), formatTextNumbers2(metrics.PktSentACK2, metrics.PktRecvACK2), formatTextNumbers2(metrics.PktSentData, metrics.PktRecvData),
+								speed, percent, started, status)
+						} else {
+							textB += "  [UDT connection not established]\n"
+						}
+
+					}
+				}
+			}
+
+			if textF != "" {
+				fmt.Fprintf(output, "Lite ID       Peer          Hash          Way  File Size  Offset     Limit    | Write-Read    HS    Shut  ACK      NAK      ACK2     Data     Speed          %%       Started              Status\n%s", textF)
+			}
+			if textB != "" {
+				fmt.Fprintf(output, "Lite ID       Peer          Blockchain    Target Blocks     Way  Limit Count  Max Block Size  | Write-Read    HS    Shut  ACK      NAK      ACK2     Data     Speed          %%       Started              Status\n%s", textB)
+			}
+
+			if textF == "" && textB == "" {
+				fmt.Fprintf(output, "No transfers.\n")
+			}
+
 		default:
 			fmt.Fprintf(output, "Unknown command.\n")
 		}
@@ -731,4 +856,16 @@ func getUserOptionHash(reader *bufio.Reader, terminateSignal <-chan struct{}) (h
 	}
 
 	return hash, true, false
+}
+
+func shortenText(text string, maxLength uint64) string {
+	if uint64(len(text)) < maxLength {
+		return text
+	}
+
+	return text[:maxLength/2] + "..." + text[uint64(len(text))-maxLength/2:]
+}
+
+func formatTextNumbers2(number1, number2 uint64) string {
+	return strconv.FormatUint(number1, 10) + "-" + strconv.FormatUint(number2, 10)
 }
