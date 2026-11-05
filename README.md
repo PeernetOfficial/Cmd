@@ -249,3 +249,5 @@ Once started attach the profiler `go tool pprof`. Note that `/debug` endpoints a
 ```
 go tool pprof -http=127.0.0.1:80 Cmd.exe http://127.0.0.1:1337/debug/pprof/heap?k=a30c01eb-856c-4b79-bdde-3c56a248f71b
 ```
+
+&copy; 2021-2026 Kleissner Ventures Ltd
