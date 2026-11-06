@@ -13,7 +13,7 @@ Rules for AI agents working in this repository.
 3. **Master is live.** Every commit on master builds, passes `go vet` and `go test`, and has been run. Nothing half-done, no stubs, no `TODO` that papers over a problem, no silenced errors. Report what real execution returned, never what it should return.
 4. **Protocol logic belongs in core, not here.** If a change needs new network, DHT, blockchain, transfer or search behaviour, it is a core change first; this repo only calls the exported API. No copies of core code.
 5. **Public repo.** No credentials, hostnames, server names, infrastructure details or internal roadmap. Example addresses in docs are loopback or documentation addresses.
-6. **No third-party contributions.** PRs are not accepted and not merged; the history stays single-author.
+6. **No third-party contributions.** Pull requests from outside are not accepted and not merged; the history stays single-author.
 7. **Simplicity wins.** This is a thin client. If a change grows a feature nobody asked for, cut it.
 8. **Underspecified or wrong is reported, not worked around.** Say so plainly, document it, solve it with the owner.
 
@@ -69,4 +69,5 @@ Release builds: `go build -trimpath -ldflags "-s"` (see README for the Windows h
 
 - Remote: `https://github.com/PeernetOfficial/Cmd.git`, branch `master`. Wrap git network calls as `GIT_TERMINAL_PROMPT=0 timeout 60 git …`.
 - `git pull --ff-only` at session start and again right before every commit; `git status --short` before editing — an unexpectedly dirty tree is reported, never stashed over.
+- **Large changes go through an issue and a pull request.** A change that cannot land as one reviewable commit on master — multi-commit work, anything touching the wire format, cryptography or on-disk compatibility, or a diff too big to review in chat — is done on a branch and merged via a pull request. Before the branch is created, an issue describes what changes, why, and the scope; the pull request references it (`Closes #N`). Commits on the branch follow the same rules as master (one logical change each, builds, `go vet` and `go test` clean). Merge with a merge commit, never squash, so the step-by-step history is kept. The merge needs the owner's approval like any commit. Small changes stay as they are: diff in chat, commit on approval, straight to master.
 - There is no own version number: the user agent is `appName + "/" + core.Version`, so the version shown is the pinned core's. Bumping the core pin is the version bump.
