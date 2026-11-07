@@ -8,6 +8,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/ed25519"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -15,7 +16,6 @@ import (
 	"time"
 
 	"github.com/PeernetOfficial/core"
-	"github.com/PeernetOfficial/core/btcec"
 	"github.com/PeernetOfficial/core/dht"
 	"github.com/PeernetOfficial/core/protocol"
 )
@@ -192,10 +192,10 @@ func filterMessageIn(peer *core.PeerInfo, raw *protocol.MessageRaw, message inte
 	}
 
 	text := fmt.Sprintf("-------- Node %s Incoming %s --------\n", hex.EncodeToString(peer.NodeID), commandA)
-	text += fmt.Sprintf("Sender Peer ID: %s\n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()))
+	text += fmt.Sprintf("Sender Peer ID: %s\n", hex.EncodeToString(peer.PublicKey))
 
-	if !raw.SenderPublicKey.IsEqual(peer.PublicKey) {
-		text += fmt.Sprintf("WARNING: Mismatch of public keys, sender %s and packet indicates %s\n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()), hex.EncodeToString(raw.SenderPublicKey.SerializeCompressed()))
+	if !raw.SenderPublicKey.Equal(peer.PublicKey) {
+		text += fmt.Sprintf("WARNING: Mismatch of public keys, sender %s and packet indicates %s\n", hex.EncodeToString(peer.PublicKey), hex.EncodeToString(raw.SenderPublicKey))
 	}
 
 	if message == nil {
@@ -258,9 +258,15 @@ func filterMessageIn(peer *core.PeerInfo, raw *protocol.MessageRaw, message inte
 			text += fmt.Sprintf("    - Hash not found %s\n", hex.EncodeToString(hash))
 		}
 	} else if traverse, ok := message.(*protocol.MessageTraverse); ok {
-		text += fmt.Sprintf("Fields:\n  Target Peer                     %s\n", hex.EncodeToString(traverse.TargetPeer.SerializeCompressed()))
-		text += fmt.Sprintf("  Authorized Relay Peer           %s\n", hex.EncodeToString(traverse.AuthorizedRelayPeer.SerializeCompressed()))
-		text += fmt.Sprintf("  Signer Public Key               %s\n", hex.EncodeToString(traverse.SignerPublicKey.SerializeCompressed()))
+		text += fmt.Sprintf("Fields:\n  Target Peer                     %s\n", hex.EncodeToString(traverse.TargetPeer))
+		text += fmt.Sprintf("  Authorized Relay Peer           %s\n", hex.EncodeToString(traverse.AuthorizedRelayPeer))
+
+		// The signer is the original sender. At the relay that is the outer sender; at the final receiver the embedded packet is encrypted for self and its sender is the signer.
+		signer := peer.PublicKey
+		if _, embeddedSender, err := protocol.PacketDecrypt(traverse.EmbeddedPacketRaw, peer.Backend.SelfPublicKey()); err == nil {
+			signer = embeddedSender
+		}
+		text += fmt.Sprintf("  Signer Public Key               %s (signature valid: %t)\n", hex.EncodeToString(signer), traverse.VerifySignature(signer))
 		text += fmt.Sprintf("  Expires                         %s\n", traverse.Expires.String())
 		text += fmt.Sprintf("  IPv4                            %s\n", traverse.IPv4.String())
 		text += fmt.Sprintf("  Port IPv4                       %d\n", traverse.PortIPv4)
@@ -276,7 +282,7 @@ func filterMessageIn(peer *core.PeerInfo, raw *protocol.MessageRaw, message inte
 }
 
 func outputPeerRecord(record *protocol.PeerRecord) (output string) {
-	output += fmt.Sprintf("      * Peer ID                         %s\n", hex.EncodeToString(record.PublicKey.SerializeCompressed()))
+	output += fmt.Sprintf("      * Peer ID                         %s\n", hex.EncodeToString(record.PublicKey))
 	output += fmt.Sprintf("        Node ID                         %s\n", hex.EncodeToString(record.NodeID))
 	if record.IPv4 != nil && !record.IPv4.IsUnspecified() {
 		output += fmt.Sprintf("        IPv4                            %s\n", record.IPv4.String())
@@ -322,7 +328,7 @@ func outputOutgoingMessage(peer *core.PeerInfo, packet *protocol.PacketRaw) {
 	}
 
 	text := fmt.Sprintf("-------- Node %s Outgoing %s --------\n", hex.EncodeToString(peer.NodeID), commandA)
-	text += fmt.Sprintf("Receiver Peer ID: %s\n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()))
+	text += fmt.Sprintf("Receiver Peer ID: %s\n", hex.EncodeToString(peer.PublicKey))
 
 	// TODO: Decoding of payload data (done by caller of this function)
 
@@ -331,7 +337,7 @@ func outputOutgoingMessage(peer *core.PeerInfo, packet *protocol.PacketRaw) {
 	output.Write([]byte(text))
 }
 
-func filterMessageOutAnnouncement(receiverPublicKey *btcec.PublicKey, peer *core.PeerInfo, packet *protocol.PacketRaw, findSelf bool, findPeer []protocol.KeyHash, findValue []protocol.KeyHash, files []protocol.InfoStore) {
+func filterMessageOutAnnouncement(receiverPublicKey ed25519.PublicKey, peer *core.PeerInfo, packet *protocol.PacketRaw, findSelf bool, findPeer []protocol.KeyHash, findValue []protocol.KeyHash, files []protocol.InfoStore) {
 	if peer == nil {
 		peer = &core.PeerInfo{PublicKey: receiverPublicKey, NodeID: protocol.PublicKey2NodeID(receiverPublicKey)}
 	}
@@ -343,7 +349,7 @@ func filterMessageOutResponse(peer *core.PeerInfo, packet *protocol.PacketRaw, h
 	outputOutgoingMessage(peer, packet)
 }
 
-func filterMessageOutTraverse(peer *core.PeerInfo, packet *protocol.PacketRaw, embeddedPacket *protocol.PacketRaw, receiverEnd *btcec.PublicKey) {
+func filterMessageOutTraverse(peer *core.PeerInfo, packet *protocol.PacketRaw, embeddedPacket *protocol.PacketRaw, receiverEnd ed25519.PublicKey) {
 	outputOutgoingMessage(peer, packet)
 }
 
