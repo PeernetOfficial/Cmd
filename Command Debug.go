@@ -260,6 +260,13 @@ func filterMessageIn(peer *core.PeerInfo, raw *protocol.MessageRaw, message inte
 	} else if traverse, ok := message.(*protocol.MessageTraverse); ok {
 		text += fmt.Sprintf("Fields:\n  Target Peer                     %s\n", hex.EncodeToString(traverse.TargetPeer))
 		text += fmt.Sprintf("  Authorized Relay Peer           %s\n", hex.EncodeToString(traverse.AuthorizedRelayPeer))
+
+		// The signer is the original sender. At the relay that is the outer sender; at the final receiver the embedded packet is encrypted for self and its sender is the signer.
+		signer := peer.PublicKey
+		if _, embeddedSender, err := protocol.PacketDecrypt(traverse.EmbeddedPacketRaw, peer.Backend.SelfPublicKey()); err == nil {
+			signer = embeddedSender
+		}
+		text += fmt.Sprintf("  Signer Public Key               %s (signature valid: %t)\n", hex.EncodeToString(signer), traverse.VerifySignature(signer))
 		text += fmt.Sprintf("  Expires                         %s\n", traverse.Expires.String())
 		text += fmt.Sprintf("  IPv4                            %s\n", traverse.IPv4.String())
 		text += fmt.Sprintf("  Port IPv4                       %d\n", traverse.PortIPv4)
