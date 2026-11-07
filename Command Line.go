@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/PeernetOfficial/core"
-	"github.com/PeernetOfficial/core/btcec"
 	"github.com/PeernetOfficial/core/dht"
 	"github.com/PeernetOfficial/core/protocol"
 	"github.com/PeernetOfficial/core/webapi"
@@ -82,19 +81,19 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 			fmt.Fprint(output, NetworkListOutput())
 
 		case "debug key create":
-			privateKey, publicKey, err := core.Secp256k1NewPrivateKey()
+			publicKey, privateKey, err := core.NewPrivateKey()
 			if err != nil {
 				fmt.Fprintf(output, "Error: %s\n", err.Error())
 				return
 			}
 
-			fmt.Fprintf(output, "Private Key: %s\n", hex.EncodeToString(privateKey.Serialize()))
-			fmt.Fprintf(output, "Public Key:  %s\n", hex.EncodeToString(publicKey.SerializeCompressed()))
+			fmt.Fprintf(output, "Private Key: %s\n", hex.EncodeToString(privateKey.Seed()))
+			fmt.Fprintf(output, "Public Key:  %s\n", hex.EncodeToString(publicKey))
 
 		case "debug key self":
 			privateKey, publicKey := backend.ExportPrivateKey()
-			fmt.Fprintf(output, "Private Key: %s\n", hex.EncodeToString(privateKey.Serialize()))
-			fmt.Fprintf(output, "Public Key:  %s\n", hex.EncodeToString(publicKey.SerializeCompressed()))
+			fmt.Fprintf(output, "Private Key: %s\n", hex.EncodeToString(privateKey.Seed()))
+			fmt.Fprintf(output, "Public Key:  %s\n", hex.EncodeToString(publicKey))
 
 		case "peer list":
 			for _, peer := range GetPeerlistSorted(backend) {
@@ -107,7 +106,7 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 				}
 				userAgent := strings.ToValidUTF8(peer.UserAgent, "?")
 
-				fmt.Fprintf(output, "* Peer ID %s%s\n  Node ID %s\n  User Agent: %s\n  Blockchain: height %d, version %d\n\n%s\n  Packets sent:      %d\n  Packets received:  %d\n\n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()), info, hex.EncodeToString(peer.NodeID), userAgent, peer.BlockchainHeight, peer.BlockchainVersion, textPeerConnections(peer), peer.StatsPacketSent, peer.StatsPacketReceived)
+				fmt.Fprintf(output, "* Peer ID %s%s\n  Node ID %s\n  User Agent: %s\n  Blockchain: height %d, version %d\n\n%s\n  Packets sent:      %d\n  Packets received:  %d\n\n", hex.EncodeToString(peer.PublicKey), info, hex.EncodeToString(peer.NodeID), userAgent, peer.BlockchainHeight, peer.BlockchainVersion, textPeerConnections(peer), peer.StatsPacketSent, peer.StatsPacketReceived)
 			}
 
 		case "chat all", "chat":
@@ -120,7 +119,7 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 		case "status":
 			_, publicKey := backend.ExportPrivateKey()
 			nodeID := backend.SelfNodeID()
-			fmt.Fprintf(output, "----------------\nPublic Key: %s\nNode ID:    %s\n\n", hex.EncodeToString(publicKey.SerializeCompressed()), hex.EncodeToString(nodeID))
+			fmt.Fprintf(output, "----------------\nPublic Key: %s\nNode ID:    %s\n\n", hex.EncodeToString(publicKey), hex.EncodeToString(nodeID))
 
 			features := ""
 			featureSupport := backend.FeatureSupport()
@@ -203,7 +202,7 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 				if peer.IsFirewallReported() {
 					flagsA += "F"
 				}
-				fmt.Fprintf(output, "%-66s  %-8d  %-8d  %-35s  %-6s  %-6s\n", hex.EncodeToString(peer.PublicKey.SerializeCompressed()), peer.StatsPacketSent, peer.StatsPacketReceived, addressA, flagsA, rttA)
+				fmt.Fprintf(output, "%-66s  %-8d  %-8d  %-35s  %-6s  %-6s\n", hex.EncodeToString(peer.PublicKey), peer.StatsPacketSent, peer.StatsPacketReceived, addressA, flagsA, rttA)
 			}
 
 			fmt.Fprintf(output, "\n")
@@ -280,41 +279,21 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 			}
 
 		case "debug connect":
-			fmt.Fprintf(output, "Please specify the target peer to connect to via DHT lookup, either by peer ID or node ID:\n")
+			fmt.Fprintf(output, "Please specify the target peer to connect to via DHT lookup by peer ID:\n")
 			text, valid, terminate := getUserOptionString(reader, terminateSignal)
 			if terminate {
 				return
-			} else if !valid || (len(text) != 66 && len(text) != 64) {
-				fmt.Fprintf(output, "Invalid peer ID or node ID. It must be hex-encoded and 66 (peer ID) or 64 characters (node ID) long.\n")
+			} else if !valid {
 				break
 			}
 
-			// node ID is required
-			var nodeID []byte
-			var err error
-
-			if len(text) == 66 {
-				// Assume peer ID was supplied.
-				publicKeyB, err := hex.DecodeString(text)
-				if err != nil || len(publicKeyB) != 33 {
-					fmt.Fprintf(output, "Invalid peer ID encoding.\n")
-					break
-				}
-
-				publicKey, err := btcec.ParsePubKey(publicKeyB, btcec.S256())
-				if err != nil {
-					fmt.Fprintf(output, "Invalid peer ID (public key decoding failed).\n")
-					continue
-				}
-
-				nodeID = protocol.PublicKey2NodeID(publicKey)
-			} else {
-				// Node ID was supplied.
-				if nodeID, err = hex.DecodeString(text); err != nil || len(nodeID) != 256/8 {
-					fmt.Fprintf(output, "Invalid node ID encoding.\n")
-					break
-				}
+			publicKey, err := core.PublicKeyFromPeerID(text)
+			if err != nil {
+				fmt.Fprintf(output, "Invalid peer ID. It must be hex-encoded and 64 characters long.\n")
+				break
 			}
+
+			nodeID := protocol.PublicKey2NodeID(publicKey)
 
 			// is self?
 			if bytes.Equal(nodeID, backend.SelfNodeID()) {
@@ -389,8 +368,8 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 			}
 
 		case "probe file transfer":
-			fmt.Fprintf(output, "Enter peer ID or node ID to connect:\n")
-			nodeIDA, _, terminate := getUserOptionString(reader, terminateSignal)
+			fmt.Fprintf(output, "Enter peer ID to connect:\n")
+			peerIDA, _, terminate := getUserOptionString(reader, terminateSignal)
 			if terminate {
 				return
 			}
@@ -401,25 +380,17 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 			}
 
 			fileHash, valid1 := webapi.DecodeBlake3Hash(fileHashA)
-			nodeID, valid2 := webapi.DecodeBlake3Hash(nodeIDA)
-			publicKey, err3 := core.PublicKeyFromPeerID(nodeIDA)
+			publicKey, errPeer := core.PublicKeyFromPeerID(peerIDA)
 
-			if !valid2 && err3 != nil {
-				fmt.Fprintf(output, "Invalid peer ID or node ID.\n")
+			if errPeer != nil {
+				fmt.Fprintf(output, "Invalid peer ID.\n")
 				break
 			} else if !valid1 {
 				fmt.Fprintf(output, "Invalid file hash.\n")
+				break
 			}
 
-			var peer *core.PeerInfo
-			var err error
-			timeout := time.Second * 10
-
-			if valid2 {
-				peer, err = webapi.PeerConnectNode(backend, nodeID, timeout)
-			} else if err3 == nil {
-				peer, err = webapi.PeerConnectPublicKey(backend, publicKey, timeout)
-			}
+			peer, err := webapi.PeerConnectPublicKey(backend, publicKey, time.Second*10)
 			if err != nil {
 				fmt.Fprintf(output, "Could not connect to peer: %s\n", err.Error())
 				break
@@ -428,8 +399,8 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 			go transferCompareFile(peer, fileHash, output)
 
 		case "get block":
-			fmt.Fprintf(output, "Enter peer ID or node ID:\n")
-			nodeIDA, _, terminate := getUserOptionString(reader, terminateSignal)
+			fmt.Fprintf(output, "Enter peer ID:\n")
+			peerIDA, _, terminate := getUserOptionString(reader, terminateSignal)
 			if terminate {
 				return
 			}
@@ -439,25 +410,17 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 				return
 			}
 
-			nodeID, valid2 := webapi.DecodeBlake3Hash(nodeIDA)
-			publicKey, err3 := core.PublicKeyFromPeerID(nodeIDA)
+			publicKey, errPeer := core.PublicKeyFromPeerID(peerIDA)
 
-			if !valid2 && err3 != nil {
-				fmt.Fprintf(output, "Invalid peer ID or node ID.\n")
+			if errPeer != nil {
+				fmt.Fprintf(output, "Invalid peer ID.\n")
 				break
 			} else if blockNumber < 0 {
 				fmt.Fprintf(output, "Invalid block number.\n")
+				break
 			}
 
-			var peer *core.PeerInfo
-			var err error
-			timeout := time.Second * 10
-
-			if valid2 {
-				peer, err = webapi.PeerConnectNode(backend, nodeID, timeout)
-			} else if err3 == nil {
-				peer, err = webapi.PeerConnectPublicKey(backend, publicKey, timeout)
-			}
+			peer, err := webapi.PeerConnectPublicKey(backend, publicKey, time.Second*10)
 			if err != nil {
 				fmt.Fprintf(output, "Could not connect to peer: %s\n", err.Error())
 				break
@@ -483,7 +446,7 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 
 			for _, result := range results {
 				fmt.Fprintf(output, "- File ID               %s\n", result.FileID.String())
-				fmt.Fprintf(output, "  Public Key            %s\n", hex.EncodeToString(result.PublicKey.SerializeCompressed()))
+				fmt.Fprintf(output, "  Public Key            %s\n", hex.EncodeToString(result.PublicKey))
 				fmt.Fprintf(output, "  Block Number          %d\n", result.BlockNumber)
 				keywords := ""
 				for n, selector := range result.Selectors {
@@ -512,7 +475,7 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 						}
 
 						textF += fmt.Sprintf("%-12s  %-12s  %-12s  %-3s  %-10d %-10d %-8d",
-							shortenText(session.ID.String(), 8), shortenText(hex.EncodeToString(virtualConn.Peer.PublicKey.SerializeCompressed()), 8), shortenText(hex.EncodeToString(fileStats.Hash), 8),
+							shortenText(session.ID.String(), 8), shortenText(hex.EncodeToString(virtualConn.Peer.PublicKey), 8), shortenText(hex.EncodeToString(fileStats.Hash), 8),
 							direction, fileStats.FileSize, fileStats.Offset, fileStats.Limit)
 
 						if fileStats.UDTConn != nil {
@@ -570,7 +533,7 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 						}
 
 						textB += fmt.Sprintf("%-12s  %-12s  %-12s  %-17s %-3s  %-12d %-15d",
-							shortenText(session.ID.String(), 8), shortenText(hex.EncodeToString(virtualConn.Peer.PublicKey.SerializeCompressed()), 8), shortenText(hex.EncodeToString(blockStats.BlockchainPublicKey.SerializeCompressed()), 8),
+							shortenText(session.ID.String(), 8), shortenText(hex.EncodeToString(virtualConn.Peer.PublicKey), 8), shortenText(hex.EncodeToString(blockStats.BlockchainPublicKey), 8),
 							targetBlocks, direction, blockStats.LimitBlockCount, blockStats.MaxBlockSize)
 
 						if blockStats.UDTConn != nil {

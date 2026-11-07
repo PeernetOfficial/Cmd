@@ -203,7 +203,7 @@ func outputUDTMetrics(metrics *udt.Metrics, output io.Writer) {
 
 /*
 // downloadFile downloads the file from the target peer
-func downloadFile(output io.Writer, publicKey *btcec.PublicKey, hash []byte) (data []byte, err error) {
+func downloadFile(output io.Writer, publicKey ed25519.PublicKey, hash []byte) (data []byte, err error) {
 	peer := core.PeerlistLookup(publicKey)
 	if peer == nil {
 		return nil, errors.New("peer not connected")

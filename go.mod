@@ -3,7 +3,7 @@ module github.com/PeernetOfficial/Cmd
 go 1.18
 
 require (
-	github.com/PeernetOfficial/core v0.0.0-20221101165801-6989ef4a19c5
+	github.com/PeernetOfficial/core v0.0.0-20261107002729-5e8b4ec33e22
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/websocket v1.5.0
 )

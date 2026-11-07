@@ -45,7 +45,7 @@ func blockTransfer(peer *core.PeerInfo, blockNumber uint64, output io.Writer) {
 		return
 	}
 
-	decoded, status, err := blockchain.DecodeBlockRaw(data)
+	decoded, status, err := blockchain.DecodeBlockRaw(data, peer.PublicKey)
 
 	if err != nil {
 		fmt.Fprintf(output, "Error decoding block: %s\n", err.Error())
@@ -55,7 +55,7 @@ func blockTransfer(peer *core.PeerInfo, blockNumber uint64, output io.Writer) {
 		return
 	}
 
-	fmt.Fprintf(output, "Block %d from %s: version %d, number %d, block size %d, decoded %d records\n", blockNumber, hex.EncodeToString(peer.PublicKey.SerializeCompressed()), decoded.BlockchainVersion, decoded.Number, len(data), len(decoded.RecordsDecoded))
+	fmt.Fprintf(output, "Block %d from %s: version %d, number %d, block size %d, decoded %d records\n", blockNumber, hex.EncodeToString(peer.PublicKey), decoded.BlockchainVersion, decoded.Number, len(data), len(decoded.RecordsDecoded))
 
 	for _, decodedR := range decoded.RecordsDecoded {
 		if file, ok := decodedR.(blockchain.BlockRecordFile); ok {
