@@ -7,7 +7,6 @@ Author:     Peter Kleissner
 package main
 
 import (
-	"bytes"
 	"crypto/ed25519"
 	"encoding/hex"
 	"fmt"
@@ -138,28 +137,40 @@ func filterSearchStatus(client *dht.SearchClient, function, format string, v ...
 
 const keyMonitorAllRequests = "all requests" // special key to monitor all info requests
 
-func filterIncomingRequest(peer *core.PeerInfo, Action int, Key []byte, Info interface{}) {
+// requestTypeNames are the request record types as named in the whitepaper.
+var requestTypeNames = map[int]string{
+	protocol.RequestAFindSelf:        "A_FIND_SELF",
+	protocol.RequestAFindPeer:        "A_FIND_PEER",
+	protocol.RequestBFindBlockchain:  "B_FIND_BLOCKCHAIN",
+	protocol.RequestBFindFile:        "B_FIND_FILE",
+	protocol.RequestBStoreBlockchain: "B_STORE_BLOCKCHAIN",
+	protocol.RequestBStoreFile:       "B_STORE_FILE",
+}
+
+// responseTypeNames are the response record types as named in the whitepaper.
+var responseTypeNames = map[uint8]string{
+	protocol.ResponseASelf:       "A_RESPONSE_SELF",
+	protocol.ResponseAPeer:       "A_RESPONSE_PEER",
+	protocol.ResponseBBlockchain: "B_RESPONSE_BLOCKCHAIN",
+	protocol.ResponseBFile:       "B_RESPONSE_FILE",
+	protocol.ResponseBFileEmbed:  "B_RESPONSE_FILE_EMBED",
+}
+
+func filterIncomingRequest(peer *core.PeerInfo, RequestType int, Key []byte, Info interface{}) {
 	monitored, output := hashIsMonitored(peer.PublicKey, []byte(keyMonitorAllRequests))
 	if !monitored {
 		return
 	}
 
-	requestType := "UNKNOWN"
-	switch Action {
-	case protocol.ActionFindSelf:
-		requestType = "FIND_SELF"
-	case protocol.ActionFindPeer:
-		requestType = "FIND_PEER"
-	case protocol.ActionFindValue:
-		requestType = "FIND_VALUE"
-	case protocol.ActionInfoStore:
-		requestType = "INFO_STORE"
+	requestType, ok := requestTypeNames[RequestType]
+	if !ok {
+		requestType = "UNKNOWN"
 	}
 
-	if Action == protocol.ActionFindSelf && bytes.Equal(peer.PublicKey, Key) {
-		fmt.Fprintf(output, "Info request from %s %s\n", hex.EncodeToString(peer.PublicKey), requestType)
+	if RequestType == protocol.RequestAFindSelf {
+		fmt.Fprintf(output, "Request from %s %s\n", hex.EncodeToString(peer.PublicKey), requestType)
 	} else {
-		fmt.Fprintf(output, "Info request from %s %s for key %s\n", hex.EncodeToString(peer.PublicKey), requestType, hex.EncodeToString(Key))
+		fmt.Fprintf(output, "Request from %s %s for key %s\n", hex.EncodeToString(peer.PublicKey), requestType, hex.EncodeToString(Key))
 	}
 }
 
@@ -203,60 +214,24 @@ func filterMessageIn(peer *core.PeerInfo, raw *protocol.MessageRaw, message inte
 	} else if announce, ok := message.(*protocol.MessageAnnouncement); ok {
 		text += fmt.Sprintf("Fields:\n  Protocol supported    %d\n", announce.Protocol)
 		text += fmt.Sprintf("  Feature bits          %d\n", announce.Features)
-		text += fmt.Sprintf("  Action bits           %d\n", announce.Actions)
 		text += fmt.Sprintf("  Blockchain Height     %d\n", announce.BlockchainHeight)
 		text += fmt.Sprintf("  Blockchain Version    %d\n", announce.BlockchainVersion)
 		text += fmt.Sprintf("  Port Internal         %d\n", announce.PortInternal)
 		text += fmt.Sprintf("  Port External         %d\n", announce.PortExternal)
 		text += fmt.Sprintf("  User Agent            %s\n", announce.UserAgent)
 
-		if len(announce.FindPeerKeys) > 0 {
-			text += fmt.Sprintf("FIND_PEER %d records:\n", len(announce.FindPeerKeys))
-		}
-		for _, find := range announce.FindPeerKeys {
-			text += fmt.Sprintf("    - Find peer %s\n", hex.EncodeToString(find.Hash))
-		}
-		if len(announce.FindDataKeys) > 0 {
-			text += fmt.Sprintf("FIND_VALUE %d records:\n", len(announce.FindDataKeys))
-		}
-		for _, find := range announce.FindDataKeys {
-			text += fmt.Sprintf("    - Find data %s\n", hex.EncodeToString(find.Hash))
-		}
-		if len(announce.InfoStoreFiles) > 0 {
-			text += fmt.Sprintf("INFO_STORE %d records:\n", len(announce.InfoStoreFiles))
-		}
-		for _, info := range announce.InfoStoreFiles {
-			text += fmt.Sprintf("    - Info store %s, type %d, size %d\n", hex.EncodeToString(info.ID.Hash), info.Type, info.Size)
-		}
+		text += outputRequests(&announce.Requests)
 	} else if response, ok := message.(*protocol.MessageResponse); ok {
 		text += fmt.Sprintf("Fields:\n  Protocol supported    %d\n", response.Protocol)
 		text += fmt.Sprintf("  Feature bits          %d\n", response.Features)
-		text += fmt.Sprintf("  Action bits           %d\n", response.Actions)
+		text += fmt.Sprintf("  Sequence last         %t\n", response.SequenceLast)
 		text += fmt.Sprintf("  Blockchain Height     %d\n", response.BlockchainHeight)
 		text += fmt.Sprintf("  Blockchain Version    %d\n", response.BlockchainVersion)
 		text += fmt.Sprintf("  Port Internal         %d\n", response.PortInternal)
 		text += fmt.Sprintf("  Port External         %d\n", response.PortExternal)
 		text += fmt.Sprintf("  User Agent            %s\n", response.UserAgent)
 
-		for _, hash := range response.Hash2Peers {
-			isLast := ""
-			if hash.IsLast {
-				isLast = " [last result in sequence]"
-			}
-			text += fmt.Sprintf("    - Peers known for the hash %s%s\n", hex.EncodeToString(hash.ID.Hash), isLast)
-			for n := range hash.Closest {
-				text += fmt.Sprintf("      Close peer:\n%s\n", outputPeerRecord(&hash.Closest[n]))
-			}
-			for n := range hash.Storing {
-				text += fmt.Sprintf("      Peer stores:\n%s\n", outputPeerRecord(&hash.Storing[n]))
-			}
-		}
-		for _, find := range response.FilesEmbed {
-			text += fmt.Sprintf("    - File embedded %s (%d bytes)\n", hex.EncodeToString(find.ID.Hash), len(find.Data))
-		}
-		for _, hash := range response.HashesNotFound {
-			text += fmt.Sprintf("    - Hash not found %s\n", hex.EncodeToString(hash))
-		}
+		text += outputResponseRecords(response.Records)
 	} else if traverse, ok := message.(*protocol.MessageTraverse); ok {
 		text += fmt.Sprintf("Fields:\n  Target Peer                     %s\n", hex.EncodeToString(traverse.TargetPeer))
 		text += fmt.Sprintf("  Authorized Relay Peer           %s\n", hex.EncodeToString(traverse.AuthorizedRelayPeer))
@@ -279,6 +254,64 @@ func filterMessageIn(peer *core.PeerInfo, raw *protocol.MessageRaw, message inte
 	text += "--------\n"
 
 	output.Write([]byte(text))
+}
+
+// outputRequests formats the request records of an announcement
+func outputRequests(requests *protocol.Requests) (text string) {
+	if requests.FindSelf {
+		text += "    - A_FIND_SELF\n"
+	}
+	for _, key := range requests.FindPeer {
+		text += fmt.Sprintf("    - A_FIND_PEER %s\n", hex.EncodeToString(key))
+	}
+	for _, key := range requests.FindBlockchain {
+		text += fmt.Sprintf("    - B_FIND_BLOCKCHAIN %s\n", hex.EncodeToString(key))
+	}
+	for _, key := range requests.FindFile {
+		text += fmt.Sprintf("    - B_FIND_FILE %s\n", hex.EncodeToString(key))
+	}
+	for _, store := range requests.StoreBlockchain {
+		text += fmt.Sprintf("    - B_STORE_BLOCKCHAIN %s, height %d, version %d\n", hex.EncodeToString(store.PublicKey), store.Height, store.Version)
+	}
+	for _, store := range requests.StoreFile {
+		text += fmt.Sprintf("    - B_STORE_FILE %s, type %d, size %d\n", hex.EncodeToString(store.Hash), store.Type, store.Size)
+	}
+	return text
+}
+
+// outputResponseRecords formats the records of a response
+func outputResponseRecords(records []protocol.ResponseRecord) (text string) {
+	for _, record := range records {
+		name, ok := responseTypeNames[record.Type]
+		if !ok {
+			name = fmt.Sprintf("UNKNOWN (%d)", record.Type)
+		}
+
+		switch record.Type {
+		case protocol.ResponseBFileEmbed:
+			text += fmt.Sprintf("    - %s %s (%d bytes)\n", name, hex.EncodeToString(record.Key), len(record.Data))
+			continue
+		case protocol.ResponseASelf:
+			text += fmt.Sprintf("    - %s", name)
+		default:
+			text += fmt.Sprintf("    - %s %s", name, hex.EncodeToString(record.Key))
+		}
+		if record.IsLast {
+			text += " [last result for the key]"
+		}
+		text += "\n"
+
+		for n := range record.Storing {
+			text += fmt.Sprintf("      Peer stores:\n%s\n", outputPeerRecord(&record.Storing[n].PeerRecord))
+			if record.Type == protocol.ResponseBBlockchain {
+				text += fmt.Sprintf("        Blockchain height %d, version %d\n", record.Storing[n].BlockchainHeight, record.Storing[n].BlockchainVersion)
+			}
+		}
+		for n := range record.Closest {
+			text += fmt.Sprintf("      Close peer:\n%s\n", outputPeerRecord(&record.Closest[n]))
+		}
+	}
+	return text
 }
 
 func outputPeerRecord(record *protocol.PeerRecord) (output string) {
@@ -336,7 +369,7 @@ func outputOutgoingMessage(peer *core.PeerInfo, packet *protocol.PacketRaw) {
 	output.Write([]byte(text))
 }
 
-func filterMessageOutAnnouncement(receiverPublicKey ed25519.PublicKey, peer *core.PeerInfo, packet *protocol.PacketRaw, findSelf bool, findPeer []protocol.KeyHash, findValue []protocol.KeyHash, files []protocol.InfoStore) {
+func filterMessageOutAnnouncement(receiverPublicKey ed25519.PublicKey, peer *core.PeerInfo, packet *protocol.PacketRaw, requests *protocol.Requests) {
 	if peer == nil {
 		peer = &core.PeerInfo{PublicKey: receiverPublicKey}
 	}
@@ -344,7 +377,7 @@ func filterMessageOutAnnouncement(receiverPublicKey ed25519.PublicKey, peer *cor
 	outputOutgoingMessage(peer, packet)
 }
 
-func filterMessageOutResponse(peer *core.PeerInfo, packet *protocol.PacketRaw, hash2Peers []protocol.Hash2Peer, filesEmbed []protocol.EmbeddedFileData, hashesNotFound [][]byte) {
+func filterMessageOutResponse(peer *core.PeerInfo, packet *protocol.PacketRaw, records []protocol.ResponseRecord) {
 	outputOutgoingMessage(peer, packet)
 }
 
