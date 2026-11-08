@@ -32,11 +32,11 @@ func transferCompareFile(peer *core.PeerInfo, fileHash []byte, output io.Writer)
 
 	// peer must be connected
 	if !peer.IsConnectionActive() {
-		fmt.Fprintf(output, "Peer has no active connection: %s\n", hex.EncodeToString(peer.NodeID))
+		fmt.Fprintf(output, "Peer has no active connection: %s\n", hex.EncodeToString(peer.PublicKey))
 		return
 	}
 
-	fmt.Fprintf(output, "1. Peer connected: %s\n", hex.EncodeToString(peer.NodeID))
+	fmt.Fprintf(output, "1. Peer connected: %s\n", hex.EncodeToString(peer.PublicKey))
 
 	// request file transfer
 	udtConn, virtualConn, err := peer.FileTransferRequestUDT(fileHash, 0, 0)

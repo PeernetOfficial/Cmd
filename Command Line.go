@@ -8,7 +8,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -106,7 +105,7 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 				}
 				userAgent := strings.ToValidUTF8(peer.UserAgent, "?")
 
-				fmt.Fprintf(output, "* Peer ID %s%s\n  Node ID %s\n  User Agent: %s\n  Blockchain: height %d, version %d\n\n%s\n  Packets sent:      %d\n  Packets received:  %d\n\n", hex.EncodeToString(peer.PublicKey), info, hex.EncodeToString(peer.NodeID), userAgent, peer.BlockchainHeight, peer.BlockchainVersion, textPeerConnections(peer), peer.StatsPacketSent, peer.StatsPacketReceived)
+				fmt.Fprintf(output, "* Peer ID %s%s\n  User Agent: %s\n  Blockchain: height %d, version %d\n\n%s\n  Packets sent:      %d\n  Packets received:  %d\n\n", hex.EncodeToString(peer.PublicKey), info, userAgent, peer.BlockchainHeight, peer.BlockchainVersion, textPeerConnections(peer), peer.StatsPacketSent, peer.StatsPacketReceived)
 			}
 
 		case "chat all", "chat":
@@ -118,8 +117,7 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 
 		case "status":
 			_, publicKey := backend.ExportPrivateKey()
-			nodeID := backend.SelfNodeID()
-			fmt.Fprintf(output, "----------------\nPublic Key: %s\nNode ID:    %s\n\n", hex.EncodeToString(publicKey), hex.EncodeToString(nodeID))
+			fmt.Fprintf(output, "----------------\nPublic Key: %s\n\n", hex.EncodeToString(publicKey))
 
 			features := ""
 			featureSupport := backend.FeatureSupport()
@@ -293,15 +291,13 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 				break
 			}
 
-			nodeID := protocol.PublicKey2NodeID(publicKey)
-
 			// is self?
-			if bytes.Equal(nodeID, backend.SelfNodeID()) {
+			if publicKey.Equal(backend.SelfPublicKey()) {
 				fmt.Fprintf(output, "Target node is self.\n")
 				break
 			}
 
-			debugCmdConnect(backend, nodeID, output)
+			debugCmdConnect(backend, publicKey, output)
 
 		case "debug watch searches":
 			fmt.Fprintf(output, "Enable (1) or disable (0) watching of all outgoing DHT searches?\n")
@@ -346,7 +342,7 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 			}
 
 		case "debug watch":
-			fmt.Fprintf(output, "Enter hash of data or node ID to watch. This monitors info requests and packets. Enter same hash again to remove from list.\n")
+			fmt.Fprintf(output, "Enter hash of data or peer ID to watch. This monitors info requests and packets. Enter same hash again to remove from list.\n")
 			text, _, terminate := getUserOptionString(reader, terminateSignal)
 			if terminate {
 				return
@@ -745,7 +741,7 @@ func GetPeerlistSorted(backend *core.Backend) (peers []*core.PeerInfo) {
 		} else if peers[j].IsRootPeer && !peers[i].IsRootPeer {
 			return false
 		}
-		return (string(peers[i].NodeID) > string(peers[j].NodeID))
+		return (string(peers[i].PublicKey) > string(peers[j].PublicKey))
 	})
 
 	return peers

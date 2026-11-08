@@ -20,23 +20,23 @@ import (
 	"github.com/PeernetOfficial/core/protocol"
 )
 
-// debugCmdConnect connects to the node ID
-func debugCmdConnect(backend *core.Backend, nodeID []byte, output io.Writer) {
-	fmt.Fprintf(output, "---------------- Connect to node %s ----------------\n", hex.EncodeToString(nodeID))
-	defer fmt.Fprintf(output, "---------------- done node %s ----------------\n", hex.EncodeToString(nodeID))
+// debugCmdConnect connects to the peer
+func debugCmdConnect(backend *core.Backend, publicKey ed25519.PublicKey, output io.Writer) {
+	fmt.Fprintf(output, "---------------- Connect to peer %s ----------------\n", hex.EncodeToString(publicKey))
+	defer fmt.Fprintf(output, "---------------- done peer %s ----------------\n", hex.EncodeToString(publicKey))
 
 	// in local DHT list?
-	_, peer := backend.IsNodeContact(nodeID)
+	_, peer := backend.IsNodeContact(publicKey)
 	if peer != nil {
 		fmt.Fprintf(output, "* In local routing table: Yes.\n")
 	} else {
 		fmt.Fprintf(output, "* In local routing table: No. Lookup via DHT. Timeout = 10 seconds.\n")
 
-		hashMonitorControl(nodeID, 0, output)
-		defer hashMonitorControl(nodeID, 1, nil)
+		hashMonitorControl(publicKey, 0, output)
+		defer hashMonitorControl(publicKey, 1, nil)
 
 		// Discovery via DHT.
-		_, peer, _ = backend.FindNode(nodeID, time.Second*10)
+		_, peer, _ = backend.FindNode(publicKey, time.Second*10)
 		if peer == nil {
 			fmt.Fprintf(output, "* Not found via DHT :(\n")
 			return
@@ -139,7 +139,7 @@ func filterSearchStatus(client *dht.SearchClient, function, format string, v ...
 const keyMonitorAllRequests = "all requests" // special key to monitor all info requests
 
 func filterIncomingRequest(peer *core.PeerInfo, Action int, Key []byte, Info interface{}) {
-	monitored, output := hashIsMonitored(peer.NodeID, []byte(keyMonitorAllRequests))
+	monitored, output := hashIsMonitored(peer.PublicKey, []byte(keyMonitorAllRequests))
 	if !monitored {
 		return
 	}
@@ -156,17 +156,17 @@ func filterIncomingRequest(peer *core.PeerInfo, Action int, Key []byte, Info int
 		requestType = "INFO_STORE"
 	}
 
-	if Action == protocol.ActionFindSelf && bytes.Equal(peer.NodeID, Key) {
-		fmt.Fprintf(output, "Info request from %s %s\n", hex.EncodeToString(peer.NodeID), requestType)
+	if Action == protocol.ActionFindSelf && bytes.Equal(peer.PublicKey, Key) {
+		fmt.Fprintf(output, "Info request from %s %s\n", hex.EncodeToString(peer.PublicKey), requestType)
 	} else {
-		fmt.Fprintf(output, "Info request from %s %s for key %s\n", hex.EncodeToString(peer.NodeID), requestType, hex.EncodeToString(Key))
+		fmt.Fprintf(output, "Info request from %s %s for key %s\n", hex.EncodeToString(peer.PublicKey), requestType, hex.EncodeToString(Key))
 	}
 }
 
 // ---- filter for incoming and outgoing packets ----
 
 func filterMessageIn(peer *core.PeerInfo, raw *protocol.MessageRaw, message interface{}) {
-	monitored, output := hashIsMonitored(peer.NodeID)
+	monitored, output := hashIsMonitored(peer.PublicKey)
 	if !monitored {
 		// TODO: For Announcement/Response also check data, Traverse the final target
 		return
@@ -191,7 +191,7 @@ func filterMessageIn(peer *core.PeerInfo, raw *protocol.MessageRaw, message inte
 		commandA = "Chat"
 	}
 
-	text := fmt.Sprintf("-------- Node %s Incoming %s --------\n", hex.EncodeToString(peer.NodeID), commandA)
+	text := fmt.Sprintf("-------- Peer %s Incoming %s --------\n", hex.EncodeToString(peer.PublicKey), commandA)
 	text += fmt.Sprintf("Sender Peer ID: %s\n", hex.EncodeToString(peer.PublicKey))
 
 	if !raw.SenderPublicKey.Equal(peer.PublicKey) {
@@ -283,7 +283,6 @@ func filterMessageIn(peer *core.PeerInfo, raw *protocol.MessageRaw, message inte
 
 func outputPeerRecord(record *protocol.PeerRecord) (output string) {
 	output += fmt.Sprintf("      * Peer ID                         %s\n", hex.EncodeToString(record.PublicKey))
-	output += fmt.Sprintf("        Node ID                         %s\n", hex.EncodeToString(record.NodeID))
 	if record.IPv4 != nil && !record.IPv4.IsUnspecified() {
 		output += fmt.Sprintf("        IPv4                            %s\n", record.IPv4.String())
 		output += fmt.Sprintf("        Port IPv4                       %d\n", record.IPv4Port)
@@ -302,7 +301,7 @@ func outputPeerRecord(record *protocol.PeerRecord) (output string) {
 }
 
 func outputOutgoingMessage(peer *core.PeerInfo, packet *protocol.PacketRaw) {
-	monitored, output := hashIsMonitored(peer.NodeID)
+	monitored, output := hashIsMonitored(peer.PublicKey)
 	if !monitored {
 		// TODO: For Announcement/Response also check data, Traverse the final target
 		return
@@ -327,7 +326,7 @@ func outputOutgoingMessage(peer *core.PeerInfo, packet *protocol.PacketRaw) {
 		commandA = "Chat"
 	}
 
-	text := fmt.Sprintf("-------- Node %s Outgoing %s --------\n", hex.EncodeToString(peer.NodeID), commandA)
+	text := fmt.Sprintf("-------- Peer %s Outgoing %s --------\n", hex.EncodeToString(peer.PublicKey), commandA)
 	text += fmt.Sprintf("Receiver Peer ID: %s\n", hex.EncodeToString(peer.PublicKey))
 
 	// TODO: Decoding of payload data (done by caller of this function)
@@ -339,7 +338,7 @@ func outputOutgoingMessage(peer *core.PeerInfo, packet *protocol.PacketRaw) {
 
 func filterMessageOutAnnouncement(receiverPublicKey ed25519.PublicKey, peer *core.PeerInfo, packet *protocol.PacketRaw, findSelf bool, findPeer []protocol.KeyHash, findValue []protocol.KeyHash, files []protocol.InfoStore) {
 	if peer == nil {
-		peer = &core.PeerInfo{PublicKey: receiverPublicKey, NodeID: protocol.PublicKey2NodeID(receiverPublicKey)}
+		peer = &core.PeerInfo{PublicKey: receiverPublicKey}
 	}
 
 	outputOutgoingMessage(peer, packet)
