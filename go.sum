@@ -1,7 +1,7 @@
 github.com/IncSW/geoip2 v0.1.4 h1:nkZz/E6POGDjnHsOda0CpBzwiH+FoDRQ1LhlAlBxOC8=
 github.com/IncSW/geoip2 v0.1.4/go.mod h1:P2giYcBGG9oBqvgkLy2DZGM+thol50fXF5+8j+VIdm8=
-github.com/PeernetOfficial/core v0.0.0-20261108225859-9f940c550d69 h1:VDCeONDkutym3rqi33cgmO9XaANS6MOk1yQxQ3yKeGE=
-github.com/PeernetOfficial/core v0.0.0-20261108225859-9f940c550d69/go.mod h1:iQm7v9yMqzA7WSfwqdGHY9Ju/m9JuacsLRBldx8diOM=
+github.com/PeernetOfficial/core v0.0.0-20261109003222-06d404461b1d h1:apd25HfOzQjRtGTHYiQNfranwbz+jm91ipsNfkVM1eQ=
+github.com/PeernetOfficial/core v0.0.0-20261109003222-06d404461b1d/go.mod h1:iQm7v9yMqzA7WSfwqdGHY9Ju/m9JuacsLRBldx8diOM=
 github.com/akrylysov/pogreb v0.10.2 h1:e6PxmeyEhWyi2AKOBIJzAEi4HkiC+lKyCocRGlnDi78=
 github.com/akrylysov/pogreb v0.10.2/go.mod h1:pNs6QmpQ1UlTJKDezuRWmaqkgUE2TuU0YTWyqJZ7+lI=
 github.com/enfipy/locker v1.1.0 h1:2zVJ0ky7cS1Vjs0x6OQWFiT2dSEiHrI5/O2KCz1fgGc=

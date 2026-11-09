@@ -143,6 +143,7 @@ var requestTypeNames = map[int]string{
 	protocol.RequestAFindPeer:        "A_FIND_PEER",
 	protocol.RequestBFindBlockchain:  "B_FIND_BLOCKCHAIN",
 	protocol.RequestBFindFile:        "B_FIND_FILE",
+	protocol.RequestBFindFileEmbed:   "B_FIND_FILE_EMBED",
 	protocol.RequestBStoreBlockchain: "B_STORE_BLOCKCHAIN",
 	protocol.RequestBStoreFile:       "B_STORE_FILE",
 }
@@ -269,6 +270,9 @@ func outputRequests(requests *protocol.Requests) (text string) {
 	}
 	for _, key := range requests.FindFile {
 		text += fmt.Sprintf("    - B_FIND_FILE %s\n", hex.EncodeToString(key))
+	}
+	for _, key := range requests.FindFileEmbed {
+		text += fmt.Sprintf("    - B_FIND_FILE_EMBED %s\n", hex.EncodeToString(key))
 	}
 	for _, store := range requests.StoreBlockchain {
 		text += fmt.Sprintf("    - B_STORE_BLOCKCHAIN %s, height %d, version %d\n", hex.EncodeToString(store.PublicKey), store.Height, store.Version)
