@@ -235,15 +235,18 @@ func filterMessageIn(peer *core.PeerInfo, raw *protocol.MessageRaw, message inte
 		text += outputResponseRecords(response.Records)
 	} else if traverse, ok := message.(*protocol.MessageTraverse); ok {
 		text += fmt.Sprintf("Fields:\n  Target Peer                     %s\n", hex.EncodeToString(traverse.TargetPeer))
-		text += fmt.Sprintf("  Authorized Relay Peer           %s\n", hex.EncodeToString(traverse.AuthorizedRelayPeer))
 
-		// The signer is the original sender. At the relay that is the outer sender; at the final receiver the embedded packet is encrypted for self and its sender is the signer.
-		signer := peer.PublicKey
-		if _, embeddedSender, err := protocol.PacketDecrypt(traverse.EmbeddedPacketRaw, peer.Backend.SelfPublicKey()); err == nil {
-			signer = embeddedSender
+		// The embedded packet is encrypted for the target peer, with the nonce taken from the Peer ID of the relay.
+		// At the relay that is self; at the target peer it is the peer that sent this message.
+		relay := peer.PublicKey
+		if !traverse.TargetPeer.Equal(peer.Backend.SelfPublicKey()) {
+			relay = peer.Backend.SelfPublicKey()
 		}
-		text += fmt.Sprintf("  Signer Public Key               %s (signature valid: %t)\n", hex.EncodeToString(signer), traverse.VerifySignature(signer))
-		text += fmt.Sprintf("  Expires                         %s\n", traverse.Expires.String())
+		if _, embeddedSender, err := protocol.PacketDecryptEmbedded(traverse.EmbeddedPacketRaw, traverse.TargetPeer, relay); err == nil {
+			text += fmt.Sprintf("  Original Sender                 %s (embedded packet valid)\n", hex.EncodeToString(embeddedSender))
+		} else {
+			text += fmt.Sprintf("  Original Sender                 (embedded packet invalid: %s)\n", err.Error())
+		}
 		text += fmt.Sprintf("  IPv4                            %s\n", traverse.IPv4.String())
 		text += fmt.Sprintf("  Port IPv4                       %d\n", traverse.PortIPv4)
 		text += fmt.Sprintf("  Port IPv4 Reported External     %d\n", traverse.PortIPv4ReportedExternal)
