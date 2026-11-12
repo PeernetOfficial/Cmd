@@ -322,20 +322,19 @@ func outputResponseRecords(records []protocol.ResponseRecord) (text string) {
 }
 
 func outputPeerRecord(record *protocol.PeerRecord) (output string) {
-	output += fmt.Sprintf("      * Peer ID                         %s\n", hex.EncodeToString(record.PublicKey))
-	if record.IPv4 != nil && !record.IPv4.IsUnspecified() {
-		output += fmt.Sprintf("        IPv4                            %s\n", record.IPv4.String())
-		output += fmt.Sprintf("        Port IPv4                       %d\n", record.IPv4Port)
-		output += fmt.Sprintf("        Port IPv4 Reported Internal     %d\n", record.IPv4PortReportedInternal)
-		output += fmt.Sprintf("        Port IPv4 Reported External     %d\n", record.IPv4PortReportedExternal)
+	output += fmt.Sprintf("      * Peer ID                         %s", hex.EncodeToString(record.PublicKey))
+	for _, address := range record.IPv4 {
+		output += fmt.Sprintf("\n        IPv4                            %s", address.IP.String())
+		output += fmt.Sprintf("\n        Port IPv4                       %d", address.Port)
+		output += fmt.Sprintf("\n        Port IPv4 Reported Internal     %d", address.PortReportedInternal)
+		output += fmt.Sprintf("\n        Port IPv4 Reported External     %d", address.PortReportedExternal)
 	}
-	if record.IPv6 != nil && !record.IPv6.IsUnspecified() {
-		output += fmt.Sprintf("        IPv6                            %s\n", record.IPv6.String())
-		output += fmt.Sprintf("        Port IPv6                       %d\n", record.IPv6Port)
-		output += fmt.Sprintf("        Port IPv6 Reported Internal     %d\n", record.IPv6PortReportedInternal)
-		output += fmt.Sprintf("        Port IPv6 Reported External     %d\n", record.IPv6PortReportedExternal)
+	for _, address := range record.IPv6 {
+		output += fmt.Sprintf("\n        IPv6                            %s", address.IP.String())
+		output += fmt.Sprintf("\n        Port IPv6                       %d", address.Port)
+		output += fmt.Sprintf("\n        Port IPv6 Reported Internal     %d", address.PortReportedInternal)
+		output += fmt.Sprintf("\n        Port IPv6 Reported External     %d", address.PortReportedExternal)
 	}
-	output += fmt.Sprintf("        Last Contact                    %s", record.LastContactT.Format(dateFormat))
 
 	return
 }
