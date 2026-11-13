@@ -1,6 +1,6 @@
 /*
 File Name:  Command Debug.go
-Copyright:  2021 Peernet Foundation s.r.o.
+Copyright:  2021 Kleissner Ventures Ltd
 Author:     Peter Kleissner
 */
 
@@ -48,7 +48,6 @@ func debugCmdConnect(backend *core.Backend, publicKey ed25519.PublicKey, output 
 	fmt.Fprintf(output, "  Uncontacted:      %t\n", peer.IsVirtual())
 	fmt.Fprintf(output, "  Root peer:        %t\n", peer.IsRootPeer)
 	fmt.Fprintf(output, "  User Agent:       %s\n", peer.UserAgent)
-	fmt.Fprintf(output, "  Firewall:         %t\n", peer.IsFirewallReported())
 
 	// virtual peer?
 	if peer.IsVirtual() {

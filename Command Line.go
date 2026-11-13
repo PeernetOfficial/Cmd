@@ -1,6 +1,6 @@
 /*
 File Name:  Command Line.go
-Copyright:  2021 Peernet Foundation s.r.o.
+Copyright:  2021 Kleissner Ventures Ltd
 Author:     Peter Kleissner
 */
 
@@ -130,12 +130,6 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 				}
 				features += "IPv6"
 			}
-			if featureSupport&(1<<protocol.FeatureFirewall) > 0 {
-				if len(features) > 0 {
-					features += ", "
-				}
-				features += "Firewall Reported"
-			}
 
 			fmt.Fprintf(output, "User Agent: %s\nFeatures:   %s\n\n", backend.SelfUserAgent(), features)
 
@@ -196,9 +190,6 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 				}
 				if peer.IsBehindNAT() {
 					flagsA += "N"
-				}
-				if peer.IsFirewallReported() {
-					flagsA += "F"
 				}
 				fmt.Fprintf(output, "%-66s  %-8d  %-8d  %-35s  %-6s  %-6s\n", hex.EncodeToString(peer.PublicKey), peer.StatsPacketSent, peer.StatsPacketReceived, addressA, flagsA, rttA)
 			}

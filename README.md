@@ -199,11 +199,7 @@ If such a rule is not set, Windows will open the dialogue "Windows Defender Fire
 
 As non-admin user, the "Allow access" button opens the User Account Control window which requires an admin login. Failure to provide an admin login (or hiting the Cancel button) creates two inbound "block" rules (one for UDP, another for TCP) in the Windows Firewall based on the executable path for the public profile. The rules block both UDP/TCP traffic on all local/remote ports for any local/remote IP address. The Edge traversal setting is set to "Block edge traversal" which has the description "Prevent applications from receiving unsolicited traffic from the Internet through a NAT edge device".
 
-This effectively means that Windows is likely block incoming traffic from uncontacted peers. This can be overcome via UDP hole punching.
-
-In the current implementation this turned out to be a problem for users with non-admin rights on a server which do not use NAT (the public IP is directly assigned to the network adapter); in that case the reported internal and measured external ports are matching, and peers do not flag that peer as NAT (the N flag will not be set in the peer table output).
-
-A potential fix for that would be a new self-reporting Firewall flag indicating that the peer believes it is behind a firewall and that the Traverse message (UDP hole punching) is required for connections from unknown peers.
+This effectively means that Windows is likely to block incoming traffic from uncontacted peers. This is overcome via UDP hole punching: a peer sends its first Announcement to a peer that was reported by another peer directly and, at the same time, as Traverse message via the reporting peer.
 
 ### Windows Firewall Debugging
 
