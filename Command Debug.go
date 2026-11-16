@@ -235,16 +235,26 @@ func filterMessageIn(peer *core.PeerInfo, raw *protocol.MessageRaw, message inte
 	} else if traverse, ok := message.(*protocol.MessageTraverse); ok {
 		text += fmt.Sprintf("Fields:\n  Target Peer                     %s\n", hex.EncodeToString(traverse.TargetPeer))
 
-		// The embedded packet is encrypted for the target peer, with the nonce taken from the Peer ID of the relay.
-		// At the relay that is self; at the target peer it is the peer that sent this message.
-		relay := peer.PublicKey
+		// The embedded packet is encrypted for the target peer. The relay reads only its sender.
+		// The target peer decrypts and verifies it, with the Peer ID of the relay that sent this message as additional authenticated data.
 		if !traverse.TargetPeer.Equal(peer.Backend.SelfPublicKey()) {
-			relay = peer.Backend.SelfPublicKey()
-		}
-		if _, embeddedSender, err := protocol.PacketDecryptEmbedded(traverse.EmbeddedPacketRaw, traverse.TargetPeer, relay); err == nil {
-			text += fmt.Sprintf("  Original Sender                 %s (embedded packet valid)\n", hex.EncodeToString(embeddedSender))
+			if embeddedSender, err := protocol.PacketEmbeddedSender(traverse.EmbeddedPacketRaw, traverse.TargetPeer); err == nil {
+				text += fmt.Sprintf("  Original Sender                 %s (as read by the relay)\n", hex.EncodeToString(embeddedSender))
+			} else {
+				text += fmt.Sprintf("  Original Sender                 (embedded packet invalid: %s)\n", err.Error())
+			}
 		} else {
-			text += fmt.Sprintf("  Original Sender                 (embedded packet invalid: %s)\n", err.Error())
+			privateKey, _ := peer.Backend.ExportPrivateKey()
+			var embeddedSender ed25519.PublicKey
+			keyPair, err := protocol.NewKeyPair(privateKey)
+			if err == nil {
+				_, embeddedSender, err = protocol.PacketDecryptEmbedded(traverse.EmbeddedPacketRaw, keyPair, peer.PublicKey)
+			}
+			if err == nil {
+				text += fmt.Sprintf("  Original Sender                 %s (embedded packet valid)\n", hex.EncodeToString(embeddedSender))
+			} else {
+				text += fmt.Sprintf("  Original Sender                 (embedded packet invalid: %s)\n", err.Error())
+			}
 		}
 		text += fmt.Sprintf("  IPv4                            %s\n", traverse.IPv4.String())
 		text += fmt.Sprintf("  Port IPv4                       %d\n", traverse.PortIPv4)

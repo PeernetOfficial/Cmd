@@ -3,12 +3,13 @@ module github.com/PeernetOfficial/Cmd
 go 1.26.0
 
 require (
-	github.com/PeernetOfficial/core v0.0.0-20261113120737-7985041d363f
+	github.com/PeernetOfficial/core v0.0.0-20261116033213-57b56e1c37ba
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
 )
 
 require (
+	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/IncSW/geoip2 v0.1.4 // indirect
 	github.com/akrylysov/pogreb v0.10.2 // indirect
 	github.com/enfipy/locker v1.1.0 // indirect
