@@ -198,6 +198,8 @@ func filterMessageIn(peer *core.PeerInfo, raw *protocol.MessageRaw, message inte
 		commandA = "Local Discovery"
 	case protocol.CommandTraverse:
 		commandA = "Traverse"
+	case protocol.CommandRelay:
+		commandA = "Relay"
 	case protocol.CommandChat:
 		commandA = "Chat"
 	}
@@ -262,6 +264,27 @@ func filterMessageIn(peer *core.PeerInfo, raw *protocol.MessageRaw, message inte
 		text += fmt.Sprintf("  IPv6                            %s\n", traverse.IPv6.String())
 		text += fmt.Sprintf("  Port IPv6                       %d\n", traverse.PortIPv6)
 		text += fmt.Sprintf("  Port IPv6 Reported External     %d\n", traverse.PortIPv6ReportedExternal)
+	} else if relay, ok := message.(*protocol.MessageRelay); ok {
+		text += fmt.Sprintf("Fields:\n  Peer                            %s\n", hex.EncodeToString(relay.Peer))
+		text += fmt.Sprintf("  FORWARDED                       %t\n", relay.Forwarded)
+
+		// With the FORWARDED flag this peer is the end receiver: the embedded packet is a packet from the named peer to it, with the Peer ID of the relay that sent this message
+		// as additional authenticated data. Without the flag this peer is the relay, which cannot read the embedded packet.
+		if relay.Forwarded {
+			privateKey, _ := peer.Backend.ExportPrivateKey()
+			var embedded *protocol.PacketRaw
+			keyPair, err := protocol.NewKeyPair(privateKey)
+			if err == nil {
+				embedded, err = protocol.PacketDecryptRelay(relay.EmbeddedPacketRaw, keyPair, relay.Peer, peer.PublicKey, nil)
+			}
+			if err == nil {
+				text += fmt.Sprintf("  Embedded Packet                 command %d sequence %d from the named peer (valid)\n", embedded.Command, embedded.Sequence)
+			} else {
+				text += fmt.Sprintf("  Embedded Packet                 (invalid: %s)\n", err.Error())
+			}
+		} else {
+			text += fmt.Sprintf("  Embedded Packet                 %d bytes for the named peer\n", len(relay.EmbeddedPacketRaw))
+		}
 	}
 
 	text += "--------\n"
@@ -370,6 +393,8 @@ func outputOutgoingMessage(peer *core.PeerInfo, packet *protocol.PacketRaw) {
 		commandA = "Local Discovery"
 	case protocol.CommandTraverse:
 		commandA = "Traverse"
+	case protocol.CommandRelay:
+		commandA = "Relay"
 	case protocol.CommandChat:
 		commandA = "Chat"
 	}
