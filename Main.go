@@ -9,9 +9,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"uuid"
 
 	"github.com/PeernetOfficial/core"
-	"github.com/google/uuid"
 )
 
 const configFile = "Config.yaml"

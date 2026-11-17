@@ -15,10 +15,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"uuid"
 
 	"github.com/PeernetOfficial/core"
 	"github.com/PeernetOfficial/core/webapi"
-	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
