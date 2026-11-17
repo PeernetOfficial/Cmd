@@ -103,6 +103,9 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 				if peer.IsBehindNAT() {
 					info += " [NAT]"
 				}
+				if !peer.IsActive() {
+					info += " [passive]"
+				}
 				userAgent := strings.ToValidUTF8(peer.UserAgent, "?")
 
 				fmt.Fprintf(output, "* Peer ID %s%s\n  User Agent: %s\n  Blockchain: height %d, version %d\n\n%s\n  Packets sent:      %d\n  Packets received:  %d\n\n", hex.EncodeToString(peer.PublicKey), info, userAgent, peer.BlockchainHeight, peer.BlockchainVersion, textPeerConnections(peer), peer.StatsPacketSent, peer.StatsPacketReceived)
