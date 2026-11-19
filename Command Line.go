@@ -104,7 +104,7 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 				}
 				userAgent := strings.ToValidUTF8(peer.UserAgent, "?")
 
-				fmt.Fprintf(output, "* Peer ID %s%s\n  User Agent: %s\n  Blockchain: height %d, version %d\n\n%s\n  Packets sent:      %d\n  Packets received:  %d\n\n", hex.EncodeToString(peer.PublicKey), info, userAgent, peer.BlockchainHeight, peer.BlockchainVersion, textPeerConnections(peer), peer.StatsPacketSent, peer.StatsPacketReceived)
+				fmt.Fprintf(output, "* Peer ID %s%s\n  User Agent: %s\n  Blockchain: version %d, height %d\n\n%s\n  Packets sent:      %d\n  Packets received:  %d\n\n", hex.EncodeToString(peer.PublicKey), info, userAgent, peer.BlockchainVersion, peer.BlockchainHeight, textPeerConnections(peer), peer.StatsPacketSent, peer.StatsPacketReceived)
 			}
 
 		case "chat all", "chat":

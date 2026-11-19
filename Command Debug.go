@@ -211,8 +211,8 @@ func filterMessageIn(peer *core.PeerInfo, raw *protocol.MessageRaw, message inte
 	} else if announce, ok := message.(*protocol.MessageAnnouncement); ok {
 		text += fmt.Sprintf("Fields:\n  Protocol supported    %d\n", announce.Protocol)
 		text += fmt.Sprintf("  Feature bits          %d\n", announce.Features)
-		text += fmt.Sprintf("  Blockchain Height     %d\n", announce.BlockchainHeight)
 		text += fmt.Sprintf("  Blockchain Version    %d\n", announce.BlockchainVersion)
+		text += fmt.Sprintf("  Blockchain Height     %d\n", announce.BlockchainHeight)
 		text += fmt.Sprintf("  Port Internal         %d\n", announce.PortInternal)
 		text += fmt.Sprintf("  Port External         %d\n", announce.PortExternal)
 		text += fmt.Sprintf("  User Agent            %s\n", announce.UserAgent)
@@ -222,8 +222,8 @@ func filterMessageIn(peer *core.PeerInfo, raw *protocol.MessageRaw, message inte
 		text += fmt.Sprintf("Fields:\n  Protocol supported    %d\n", response.Protocol)
 		text += fmt.Sprintf("  Feature bits          %d\n", response.Features)
 		text += fmt.Sprintf("  Sequence last         %t\n", response.SequenceLast)
-		text += fmt.Sprintf("  Blockchain Height     %d\n", response.BlockchainHeight)
 		text += fmt.Sprintf("  Blockchain Version    %d\n", response.BlockchainVersion)
+		text += fmt.Sprintf("  Blockchain Height     %d\n", response.BlockchainHeight)
 		text += fmt.Sprintf("  Port Internal         %d\n", response.PortInternal)
 		text += fmt.Sprintf("  Port External         %d\n", response.PortExternal)
 		text += fmt.Sprintf("  User Agent            %s\n", response.UserAgent)
@@ -299,7 +299,7 @@ func outputRequests(requests *protocol.Requests) (text string) {
 		text += fmt.Sprintf("    - B_FIND_BLOCKCHAIN %s\n", hex.EncodeToString(key))
 	}
 	for _, store := range requests.StoreBlockchain {
-		text += fmt.Sprintf("    - B_STORE_BLOCKCHAIN %s, height %d, version %d\n", hex.EncodeToString(store.PublicKey), store.Height, store.Version)
+		text += fmt.Sprintf("    - B_STORE_BLOCKCHAIN %s, version %d, height %d, time %s UTC\n", hex.EncodeToString(store.PublicKey), store.Version, store.Height, time.Unix(int64(store.Time), 0).UTC().Format(dateFormat))
 	}
 	return text
 }
@@ -326,7 +326,7 @@ func outputResponseRecords(records []protocol.ResponseRecord) (text string) {
 		for n := range record.Storing {
 			text += fmt.Sprintf("      Peer stores:\n%s\n", outputPeerRecord(&record.Storing[n].PeerRecord))
 			if record.Type == protocol.ResponseBBlockchain {
-				text += fmt.Sprintf("        Blockchain height %d, version %d\n", record.Storing[n].BlockchainHeight, record.Storing[n].BlockchainVersion)
+				text += fmt.Sprintf("        Blockchain version %d, height %d, time %s UTC\n", record.Storing[n].BlockchainVersion, record.Storing[n].BlockchainHeight, time.Unix(int64(record.Storing[n].Time), 0).UTC().Format(dateFormat))
 			}
 		}
 		for n := range record.Closest {
