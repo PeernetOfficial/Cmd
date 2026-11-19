@@ -123,7 +123,7 @@ func filterSearchStatus(client *dht.SearchClient, function, format string, v ...
 	switch function {
 	case "search.sendInfoRequest":
 		intend = "    >"
-	case "dht.FindNode", "dht.Get", "dht.Store":
+	case "dht.FindNode":
 		intend = " -"
 	case "search.startSearch":
 		intend = "  >"
@@ -141,10 +141,7 @@ var requestTypeNames = map[int]string{
 	protocol.RequestAFindSelf:        "A_FIND_SELF",
 	protocol.RequestAFindPeer:        "A_FIND_PEER",
 	protocol.RequestBFindBlockchain:  "B_FIND_BLOCKCHAIN",
-	protocol.RequestBFindFile:        "B_FIND_FILE",
-	protocol.RequestBFindFileEmbed:   "B_FIND_FILE_EMBED",
 	protocol.RequestBStoreBlockchain: "B_STORE_BLOCKCHAIN",
-	protocol.RequestBStoreFile:       "B_STORE_FILE",
 }
 
 // responseTypeNames are the response record types as named in the whitepaper.
@@ -152,8 +149,6 @@ var responseTypeNames = map[uint8]string{
 	protocol.ResponseASelf:       "A_RESPONSE_SELF",
 	protocol.ResponseAPeer:       "A_RESPONSE_PEER",
 	protocol.ResponseBBlockchain: "B_RESPONSE_BLOCKCHAIN",
-	protocol.ResponseBFile:       "B_RESPONSE_FILE",
-	protocol.ResponseBFileEmbed:  "B_RESPONSE_FILE_EMBED",
 }
 
 func filterIncomingRequest(peer *core.PeerInfo, RequestType int, Key []byte, Info interface{}) {
@@ -303,17 +298,8 @@ func outputRequests(requests *protocol.Requests) (text string) {
 	for _, key := range requests.FindBlockchain {
 		text += fmt.Sprintf("    - B_FIND_BLOCKCHAIN %s\n", hex.EncodeToString(key))
 	}
-	for _, key := range requests.FindFile {
-		text += fmt.Sprintf("    - B_FIND_FILE %s\n", hex.EncodeToString(key))
-	}
-	for _, key := range requests.FindFileEmbed {
-		text += fmt.Sprintf("    - B_FIND_FILE_EMBED %s\n", hex.EncodeToString(key))
-	}
 	for _, store := range requests.StoreBlockchain {
 		text += fmt.Sprintf("    - B_STORE_BLOCKCHAIN %s, height %d, version %d\n", hex.EncodeToString(store.PublicKey), store.Height, store.Version)
-	}
-	for _, store := range requests.StoreFile {
-		text += fmt.Sprintf("    - B_STORE_FILE %s, type %d, size %d\n", hex.EncodeToString(store.Hash), store.Type, store.Size)
 	}
 	return text
 }
@@ -327,9 +313,6 @@ func outputResponseRecords(records []protocol.ResponseRecord) (text string) {
 		}
 
 		switch record.Type {
-		case protocol.ResponseBFileEmbed:
-			text += fmt.Sprintf("    - %s %s (%d bytes)\n", name, hex.EncodeToString(record.Key), len(record.Data))
-			continue
 		case protocol.ResponseASelf:
 			text += fmt.Sprintf("    - %s", name)
 		default:

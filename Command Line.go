@@ -39,10 +39,6 @@ func showHelp(output io.Writer) {
 		"debug watch                   Watch packets and info requests for hash\n"+
 		"probe file transfer           Attempts to transfer and validate a remote file against a local file\n"+
 		"hash                          Create blake3 hash of input\n"+
-		"warehouse get                 Get data from local warehouse by hash\n"+
-		"warehouse store               Store data into local warehouse\n"+
-		"dht get                       Get data via DHT by hash\n"+
-		"dht store                     Store data into DHT\n"+
 		"get block                     Get block from remote peer\n"+
 		"log error                     Set error log output\n"+
 		"exit                          Exit\n"+
@@ -205,59 +201,6 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 				fmt.Fprintf(output, "blake3 hash: %s\n", hex.EncodeToString(hash))
 			} else if terminate {
 				return
-			}
-
-		case "warehouse get":
-			if hash, valid, terminate := getUserOptionHash(reader, terminateSignal); valid {
-				data, found := backend.GetDataLocal(hash)
-				if !found {
-					fmt.Fprintf(output, "Not found.\n")
-				} else {
-					fmt.Fprintf(output, "Data hex:    %s\n", hex.EncodeToString(data))
-					fmt.Fprintf(output, "Data string: %s\n", string(data))
-				}
-			} else if terminate {
-				return
-			} else {
-				fmt.Fprintf(output, "Invalid hash. Hex-encoded blake3 hash as input is required.\n")
-			}
-
-		case "warehouse store":
-			if text, valid, terminate := getUserOptionString(reader, terminateSignal); valid {
-				if err := backend.StoreDataLocal([]byte(text)); err != nil {
-					fmt.Fprintf(output, "Error storing data: %s\n", err.Error())
-					break
-				}
-				fmt.Fprintf(output, "Stored via hash: %s\n", hex.EncodeToString(core.Data2Hash([]byte(text))))
-			} else if terminate {
-				return
-			}
-
-		case "dht store":
-			if text, valid, terminate := getUserOptionString(reader, terminateSignal); valid {
-				if err := backend.StoreDataDHT([]byte(text), 5); err != nil {
-					fmt.Fprintf(output, "Error storing data: %s\n", err.Error())
-					break
-				}
-				fmt.Fprintf(output, "Stored via hash: %s\n", hex.EncodeToString(core.Data2Hash([]byte(text))))
-			} else if terminate {
-				return
-			}
-
-		case "dht get":
-			if hash, valid, terminate := getUserOptionHash(reader, terminateSignal); valid {
-				data, sender, found := backend.GetDataDHT(hash)
-				if !found {
-					fmt.Fprintf(output, "Not found.\n")
-				} else {
-					fmt.Fprintf(output, "\nSender:      %s\n", hex.EncodeToString(sender))
-					fmt.Fprintf(output, "Data hex:    %s\n", hex.EncodeToString(data))
-					fmt.Fprintf(output, "Data string: %s\n", string(data))
-				}
-			} else if terminate {
-				return
-			} else {
-				fmt.Fprintf(output, "Invalid hash. Hex-encoded blake3 hash as input is required.\n")
 			}
 
 		case "log error":
@@ -795,20 +738,6 @@ func getUserOptionInt(reader *bufio.Reader, terminateSignal <-chan struct{}) (re
 	}
 
 	return responseI, true, false
-}
-
-func getUserOptionHash(reader *bufio.Reader, terminateSignal <-chan struct{}) (hash []byte, valid, terminate bool) {
-	responseA, valid, terminate := readUserText(reader, terminateSignal)
-	if !valid || terminate {
-		return nil, valid, terminate
-	}
-
-	hash, err := hex.DecodeString(responseA)
-	if err != nil || len(hash) != 256/8 {
-		return nil, false, false
-	}
-
-	return hash, true, false
 }
 
 func shortenText(text string, maxLength uint64) string {
