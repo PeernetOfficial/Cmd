@@ -62,6 +62,39 @@ func debugCmdConnect(backend *core.Backend, publicKey ed25519.PublicKey, output 
 	//fmt.Fprintf(output, "* Sending ping:\n")
 }
 
+// debugCmdFindBlockchain looks up the peers that store the blockchain and lists each one as a peer reports it
+func debugCmdFindBlockchain(backend *core.Backend, publicKey ed25519.PublicKey, output io.Writer) {
+	fmt.Fprintf(output, "---------------- Find blockchain %s ----------------\n", hex.EncodeToString(publicKey))
+	defer fmt.Fprintf(output, "---------------- done blockchain %s ----------------\n", hex.EncodeToString(publicKey))
+
+	hashMonitorControl(publicKey, 0, output)
+	defer hashMonitorControl(publicKey, 1, nil)
+
+	timeStart := time.Now()
+
+	search, err := backend.FindBlockchain(publicKey)
+	if err != nil {
+		fmt.Fprintf(output, "* Error starting the lookup: %s\n", err.Error())
+		return
+	}
+
+	count := 0
+
+	for {
+		select {
+		case result := <-search.Storing:
+			storing := result.StoringNode.Info.(*core.BlockchainStoring)
+			count++
+
+			fmt.Fprintf(output, "* Peer %s stores the blockchain: version %d, height %d, time %s UTC. Reported by %s.\n", hex.EncodeToString(storing.Peer.PublicKey), storing.Version, storing.Height, storing.Time.UTC().Format(dateFormat), hex.EncodeToString(result.SenderID))
+
+		case <-search.TerminateSignal:
+			fmt.Fprintf(output, "* Lookup ended after %s. Storing peers reported: %d\n", time.Since(timeStart).Round(time.Millisecond).String(), count)
+			return
+		}
+	}
+}
+
 // ---- filter for outgoing DHT searches ----
 
 // debug output of monitored keys searched in the DHT
