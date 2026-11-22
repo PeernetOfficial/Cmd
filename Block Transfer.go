@@ -7,6 +7,7 @@ Author:     Peter Kleissner
 package main
 
 import (
+	"crypto/ed25519"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -18,8 +19,44 @@ import (
 
 const maxBlockSize = 1 * 1024 * 1024
 
-func blockTransfer(peer *core.PeerInfo, blockNumber uint64, output io.Writer) {
-	conn, _, err := peer.BlockTransferRequest(peer.PublicKey, peer.BlockchainVersion, 1, maxBlockSize, []protocol.BlockRange{{Offset: uint64(blockNumber), Limit: 1}})
+// blockTransferStored requests a block of the blockchain from the peer and prints it. The blockchain is one that the peer stores a copy of.
+// The version and the height that the peer stores are read from its blockchain record, which a lookup in DHT B for the blockchain returns.
+func blockTransferStored(backend *core.Backend, peer *core.PeerInfo, blockchainPublicKey ed25519.PublicKey, blockNumber uint64, output io.Writer) {
+	search, err := backend.FindBlockchain(blockchainPublicKey)
+	if err != nil {
+		fmt.Fprintf(output, "Error starting the lookup: %s\n", err.Error())
+		return
+	}
+
+	for {
+		select {
+		case result := <-search.Storing:
+			storing := result.StoringNode.Info.(*core.BlockchainStoring)
+			if !storing.Peer.PublicKey.Equal(peer.PublicKey) {
+				continue
+			}
+			search.Terminate()
+
+			fmt.Fprintf(output, "Peer %s stores blockchain %s: version %d, height %d\n", hex.EncodeToString(peer.PublicKey), hex.EncodeToString(blockchainPublicKey), storing.Version, storing.Height)
+
+			if blockNumber >= storing.Height {
+				fmt.Fprintf(output, "Error requested block %d is above the height that the peer stores\n", blockNumber)
+				return
+			}
+
+			blockTransfer(peer, blockchainPublicKey, storing.Version, blockNumber, output)
+			return
+
+		case <-search.TerminateSignal:
+			fmt.Fprintf(output, "Peer %s was not reported as storing blockchain %s\n", hex.EncodeToString(peer.PublicKey), hex.EncodeToString(blockchainPublicKey))
+			return
+		}
+	}
+}
+
+// blockTransfer requests a block of the blockchain in the given version from the peer and prints it.
+func blockTransfer(peer *core.PeerInfo, blockchainPublicKey ed25519.PublicKey, blockchainVersion, blockNumber uint64, output io.Writer) {
+	conn, _, err := peer.BlockTransferRequest(blockchainPublicKey, blockchainVersion, 1, maxBlockSize, []protocol.BlockRange{{Offset: uint64(blockNumber), Limit: 1}})
 	if err != nil {
 		fmt.Fprintf(output, "Error starting block transfer: %s\n", err.Error())
 		return
@@ -45,7 +82,7 @@ func blockTransfer(peer *core.PeerInfo, blockNumber uint64, output io.Writer) {
 		return
 	}
 
-	decoded, status, err := blockchain.DecodeBlockRaw(data, peer.PublicKey)
+	decoded, status, err := blockchain.DecodeBlockRaw(data, blockchainPublicKey)
 
 	if err != nil {
 		fmt.Fprintf(output, "Error decoding block: %s\n", err.Error())
@@ -55,7 +92,7 @@ func blockTransfer(peer *core.PeerInfo, blockNumber uint64, output io.Writer) {
 		return
 	}
 
-	fmt.Fprintf(output, "Block %d from %s: version %d, number %d, block size %d, decoded %d records\n", blockNumber, hex.EncodeToString(peer.PublicKey), decoded.BlockchainVersion, decoded.Number, len(data), len(decoded.RecordsDecoded))
+	fmt.Fprintf(output, "Block %d of blockchain %s from %s: version %d, number %d, block size %d, decoded %d records\n", blockNumber, hex.EncodeToString(blockchainPublicKey), hex.EncodeToString(peer.PublicKey), decoded.BlockchainVersion, decoded.Number, len(data), len(decoded.RecordsDecoded))
 
 	for _, decodedR := range decoded.RecordsDecoded {
 		if file, ok := decodedR.(blockchain.BlockRecordFile); ok {

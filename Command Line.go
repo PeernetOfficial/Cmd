@@ -381,6 +381,11 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 			if terminate {
 				return
 			}
+			fmt.Fprintf(output, "Enter peer ID of the blockchain, or nothing for the blockchain of the peer:\n")
+			blockchainIDA, _, terminate := getUserOptionString(reader, terminateSignal)
+			if terminate {
+				return
+			}
 			fmt.Fprintf(output, "Enter block number:\n")
 			blockNumber, _, terminate := getUserOptionInt(reader, terminateSignal)
 			if terminate {
@@ -397,13 +402,26 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 				break
 			}
 
+			blockchainPublicKey := publicKey
+			if blockchainIDA != "" {
+				if blockchainPublicKey, errPeer = core.PublicKeyFromPeerID(blockchainIDA); errPeer != nil {
+					fmt.Fprintf(output, "Invalid peer ID of the blockchain.\n")
+					break
+				}
+			}
+
 			peer, err := webapi.PeerConnectPublicKey(backend, publicKey, time.Second*10)
 			if err != nil {
 				fmt.Fprintf(output, "Could not connect to peer: %s\n", err.Error())
 				break
 			}
 
-			go blockTransfer(peer, uint64(blockNumber), output)
+			// The blockchain of the peer is requested in the version that the peer reports.
+			if blockchainIDA == "" {
+				go blockTransfer(peer, peer.PublicKey, peer.BlockchainVersion, uint64(blockNumber), output)
+			} else {
+				go blockTransferStored(backend, peer, blockchainPublicKey, uint64(blockNumber), output)
+			}
 
 		case "exit":
 			backend.LogError("userCommands", "graceful exit via user terminal command\n")
