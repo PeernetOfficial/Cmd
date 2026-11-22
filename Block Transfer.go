@@ -1,6 +1,6 @@
 /*
 File Name:  Block Transfer.go
-Copyright:  2021 Peernet Foundation s.r.o.
+Copyright:  2021 Kleissner Ventures Ltd
 Author:     Peter Kleissner
 */
 
@@ -19,7 +19,7 @@ import (
 const maxBlockSize = 1 * 1024 * 1024
 
 func blockTransfer(peer *core.PeerInfo, blockNumber uint64, output io.Writer) {
-	conn, _, err := peer.BlockTransferRequest(peer.PublicKey, 1, maxBlockSize, []protocol.BlockRange{{Offset: uint64(blockNumber), Limit: 1}})
+	conn, _, err := peer.BlockTransferRequest(peer.PublicKey, peer.BlockchainVersion, 1, maxBlockSize, []protocol.BlockRange{{Offset: uint64(blockNumber), Limit: 1}})
 	if err != nil {
 		fmt.Fprintf(output, "Error starting block transfer: %s\n", err.Error())
 		return
