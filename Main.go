@@ -1,6 +1,6 @@
 /*
 File Name:  Main.go
-Copyright:  2021 Peernet Foundation s.r.o.
+Copyright:  2021 Kleissner Ventures Ltd
 Author:     Peter Kleissner
 */
 
@@ -30,6 +30,11 @@ var config struct {
 	APITimeoutWrite    string    `yaml:"APITimeoutWrite"`    // The maximum duration before timing out writes of the response. This includes processing time and is therefore the max time any HTTP function may take.
 	APIKey             uuid.UUID `yaml:"APIKey"`             // API key. Empty UUID 00000000-0000-0000-0000-000000000000 = not used.
 	DebugAPI           bool      `yaml:"DebugAPI"`           // Enables the debug API which allows profiling. Do not enable in production. Only available if compiled with debug tag.
+
+	// Blockchain cache settings: the reasons for which the blockchain of another peer is kept.
+	CacheRequested bool `yaml:"CacheRequested"` // Keeps a blockchain that the user requested, for 30 days.
+	CacheNeighbour bool `yaml:"CacheNeighbour"` // Keeps the blockchains of the peers that this peer is among the 20 closest peers to, for 1 to 7 days after the peer was last seen.
+	CacheMet       bool `yaml:"CacheMet"`       // Keeps the blockchain of every peer met, for 24 hours after the peer was last seen.
 }
 
 func main() {
@@ -44,7 +49,12 @@ func main() {
 		MessageOutTraverse:     filterMessageOutTraverse,
 		MessageOutPing:         filterMessageOutPing,
 		MessageOutPong:         filterMessageOutPong,
+		BlockchainReported:     filterBlockchainReported,
 	}
+
+	// Defaults of the settings. A setting in the config file replaces its default.
+	config.CacheRequested = true
+	config.CacheNeighbour = true
 
 	backend, status, err := core.Init(userAgent, configFile, filters, &config)
 

@@ -65,6 +65,16 @@ BlockchainGlobal: "data/blockchain global/"     # Blockchain global stores block
 WarehouseMain:    "data/warehouse main/"        # Warehouse main stores the actual data of files shared by the end-user.
 ```
 
+### Blockchain cache
+
+The blockchain cache holds copies of the blockchains of other peers. A blockchain is kept for one or more of the reasons below. Each reason is switched on or off in the `Config.yaml`. A copy is deleted when its last reason has ended.
+
+```yaml
+CacheRequested: true    # Keeps a blockchain that the user requested, for 30 days.
+CacheNeighbour: true    # Keeps the blockchains of the peers that this peer is among the 20 closest peers to, for 1 to 7 days after the peer was last seen.
+CacheMet:       false   # Keeps the blockchain of every peer met, for 24 hours after the peer was last seen.
+```
+
 ## Web API
 
 The web API described in the [core library](https://github.com/PeernetOfficial/core/tree/master/webapi#web-api) is only available if the listen parameter is specified either via command line parameter or via the settings file.

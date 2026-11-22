@@ -35,6 +35,8 @@ func showHelp(output io.Writer) {
 		"debug key self                List current Public-Private Key pair\n"+
 		"debug connect                 Attempts to connect to the target peer\n"+
 		"debug find blockchain         Looks up the peers that store a blockchain\n"+
+		"debug cache keep              Keeps a blockchain in the blockchain cache\n"+
+		"debug cache drop              Ends keeping a blockchain in the blockchain cache\n"+
 		"debug watch searches          Watch all outgoing DHT searches\n"+
 		"debug watch incoming          Watch all incoming information requests\n"+
 		"debug watch                   Watch packets and info requests for hash\n"+
@@ -253,6 +255,30 @@ func userCommands(backend *core.Backend, input io.Reader, output io.Writer, term
 			}
 
 			debugCmdFindBlockchain(backend, publicKey, output)
+
+		case "debug cache keep", "debug cache drop":
+			fmt.Fprintf(output, "Please specify the peer ID of the blockchain:\n")
+			text, valid, terminate := getUserOptionString(reader, terminateSignal)
+			if terminate {
+				return
+			} else if !valid {
+				break
+			}
+
+			publicKey, err := core.PublicKeyFromPeerID(text)
+			if err != nil {
+				fmt.Fprintf(output, "Invalid peer ID. It must be hex-encoded and 64 characters long.\n")
+				break
+			} else if publicKey.Equal(backend.SelfPublicKey()) {
+				fmt.Fprintf(output, "This is the own blockchain.\n")
+				break
+			}
+
+			if command == "debug cache keep" {
+				debugCmdCacheKeep(backend, publicKey, output)
+			} else {
+				debugCmdCacheDrop(backend, publicKey, output)
+			}
 
 		case "debug watch searches":
 			fmt.Fprintf(output, "Enable (1) or disable (0) watching of all outgoing DHT searches?\n")
