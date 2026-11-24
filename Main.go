@@ -71,7 +71,7 @@ func main() {
 		case core.ExitErrorConfigParse:
 			fmt.Printf("Error parsing config file '%s' (make sure it is valid YAML format): %s\n", configFile, err.Error())
 		case core.ExitErrorLogInit:
-			fmt.Printf("Error opening log file '%s': %s\n", backend.Config.LogFile, err.Error())
+			fmt.Printf("Error opening log file: %s\n", err.Error())
 		default:
 			fmt.Printf("Unknown error %d initializing backend: %s\n", status, err.Error())
 		}
