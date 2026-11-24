@@ -60,6 +60,10 @@ func main() {
 
 	if status != core.ExitSuccess {
 		switch status {
+		case core.ExitErrorLocked:
+			fmt.Printf("Another process is running with the config file '%s'.\n", configFile)
+		case core.ExitErrorLockFile:
+			fmt.Printf("Error locking the file '%s.lock': %s\n", configFile, err.Error())
 		case core.ExitErrorConfigAccess:
 			fmt.Printf("Unknown error accessing config file '%s': %s\n", configFile, err.Error())
 		case core.ExitErrorConfigRead:

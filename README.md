@@ -183,6 +183,8 @@ The application exits in case of the errors listed below and uses the specified 
 | 8          | ExitBlockchainCorrupt  | Blockchain is corrupt.                              |
 | 9          | ExitGraceful           | Graceful shutdown.                                  |
 | 10         | ExitParamApiKeyInvalid | API key parameter is invalid.                       |
+| 11         | ExitErrorLocked        | Another process is running with the config file.    |
+| 12         | ExitErrorLockFile      | Error opening or locking the lock file.             |
 | 0xC000013A | STATUS_CONTROL_C_EXIT  | The application terminated as a result of a CTRL+C. |
 
 ## Windows User Privileges

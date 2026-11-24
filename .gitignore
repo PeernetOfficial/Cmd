@@ -1,5 +1,6 @@
 *.exe
 *debug_bin
 *.yaml
+*.lock
 .vscode
 data/
